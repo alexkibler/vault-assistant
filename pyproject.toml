@@ -23,4 +23,17 @@ dev-dependencies = [
     "pytest>=7.4.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
+    "mypy>=1.7.0",
+    "types-python-dotenv>=1.0.0",
 ]
+
+[tool.mypy]
+ignore_missing_imports = true
+python_version = "3.11"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]

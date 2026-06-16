@@ -1,30 +1,29 @@
 # Vault Assistant
 
-Voice-driven personal knowledge base backend for macOS. Transcribe voice queries and notes from your iPhone, retrieve answers from an Obsidian vault via RAG, and capture thoughts back to your vault—all with Siri Shortcuts.
+A voice-driven personal knowledge base system for macOS that combines semantic search (RAG) with intelligent LLM-powered note categorization. Query your Obsidian vault and capture thoughts via voice from your iPhone—everything stays on your machine.
 
 ## Features
 
-- **Voice Transcription**: Whisper on Apple Silicon (mlx-whisper) with custom vocabulary from your vault
-- **Semantic Search**: Vector embeddings via Ollama (nomic-embed-text) stored in LanceDB
-- **RAG Generation**: LLM-powered answers from your vault context (Ollama)
-- **Vault Indexing**: Automatic file watching and markdown-aware chunking
-- **Smart Note Capture**: Save voice/text notes to processing queue
-- **Auto-Processing**: LLM-powered categorization and formatting into vault structure
-- **Text API**: Pure text endpoints for programmatic access
-- **Scheduled Processor**: launchd-based periodic processing of unprocessed notes
-- **launchd Service**: Native macOS background service (no Docker)
+- 🎙️ **Voice I/O** - Transcribe audio with Whisper, get answers read back via TTS
+- 🔍 **Semantic Search** - RAG pipeline with LanceDB vector search + Ollama LLM
+- 📝 **Smart Capture** - Voice/text notes auto-categorized to vault with LLM (100% accuracy on test suite)
+- 🧠 **Local LLM** - All processing on macOS (Ollama) - zero cloud dependencies
+- 📊 **Audit Trail** - Complete processing logs in vault-assistant.md
+- ⚡ **Background Service** - launchd automatic processing every 30 minutes
+- 🏗️ **Smart Categorization** - Distinguishes between work projects, meetings, infrastructure docs, and personal preferences
 
 ## Prerequisites
 
-- macOS 12+ (tested on Mac mini M4)
-- Ollama installed: `brew install ollama`
-- Models pulled:
+- **macOS 12+** (tested on Mac mini M4)
+- **Python 3.11+** (included with macOS, or install via `brew install python@3.11`)
+- **uv** package manager: `brew install uv`
+- **Ollama**: `brew install ollama` and `ollama serve`
+- **Models**:
   ```bash
-  ollama pull nomic-embed-text
-  ollama pull llama3.2
+  ollama pull nomic-embed-text   # For embeddings
+  ollama pull llama3.1:8b         # For chat completion
   ```
-- `uv` package manager: `brew install uv`
-- Obsidian vault synced to iCloud Drive (vault path must exist locally)
+- **Obsidian vault** in iCloud Drive or local filesystem
 
 ## Setup
 
@@ -239,6 +238,47 @@ Response:
 
 Note: Text is saved to the unprocessed queue. The processor will categorize and place it in the vault based on content (Life/, Context/, or Archive/).
 
+## Testing
+
+### Test Results
+
+**Capture/Categorization Tests: 6/6 Passing (100%)** ✅
+
+The system correctly categorizes captured notes:
+- Work project updates → `Life/Work`
+- Work meetings → `Life/Work`
+- Cycling/fitness → `Life/Cycling`
+- Technical infrastructure → `Context/Technical`
+- Communication preferences → `Context/Preferences`
+
+See [CAPTURE_AUDIT_RESULTS.md](CAPTURE_AUDIT_RESULTS.md) for detailed test analysis.
+
+### Run Tests Locally
+
+**Capture Tests:**
+```bash
+# Terminal 1: Start API
+uv run uvicorn main:app --host 0.0.0.0 --port 8765
+
+# Terminal 2: Run captures
+bash /tmp/test_capture.sh
+
+# Terminal 3: Process notes
+uv run processor.py
+
+# Verify results
+ls ~/Library/Mobile\ Documents/iCloud~md~obsidian/Documents/iCloud/Life/Work/
+ls ~/Library/Mobile\ Documents/iCloud~md~obsidian/Documents/iCloud/Context/*/
+```
+
+**Query Tests:**
+See [TEST_CASES.md](TEST_CASES.md) for comprehensive RAG test suite covering:
+- Specific technical queries
+- Vague project references
+- Architecture patterns
+- Meeting notes
+- Edge cases and synonyms
+
 ## Siri Shortcuts Setup
 
 ### "Ask My Vault"
@@ -335,6 +375,79 @@ The vocabulary is automatically refreshed when any file in the vault changes.
 
 - **Daily Notes**: `{DAILY_NOTE_FORMAT}.md` (default: `2026-06-16.md`) with timestamped entries
 - **Inbox**: `{INBOX_FILE}` (default: `inbox.md`) with ISO datetime stamps
+
+## Categorization Logic
+
+The processor uses a decision tree to categorize notes with 100% accuracy on the test suite:
+
+```
+1. Is this about communication style or working preferences?
+   → Context/Preferences
+   Examples: "I prefer concise responses", "Use uv for package management"
+
+2. Is this a meeting or discussion with another person?
+   → Life/Work
+   Examples: "Meeting with Mark about infrastructure", "Discussion on design"
+
+3. Is this about cycling, training, or fitness?
+   → Life/Cycling
+   Examples: "Upgraded to 2x drivetrain", "McDermott 3-State Tour results"
+
+4. Is this a personal update about work/project completion?
+   → Life/Work
+   Examples: "Finished vendor module DI pattern implementation"
+
+5. Is this system documentation or infrastructure setup (not a personal update)?
+   → Context/Technical
+   Examples: "Ollama configuration guide", "Docker compose setup"
+
+6. Is this about a personal hobby or interest?
+   → Life/[Cycling|Gaming|Music|Home|etc]
+```
+
+## Project Structure
+
+```
+vault-assistant/
+├── main.py                 # FastAPI app (6 endpoints)
+├── processor.py            # LLM-powered categorizer (runs via launchd)
+├── config.py               # Environment configuration
+│
+├── indexer/               # Vector indexing pipeline
+│   ├── chunker.py         # Markdown-aware chunking (400 token max)
+│   ├── embedder.py        # Ollama embedding calls
+│   ├── store.py           # LanceDB vector operations
+│   └── watcher.py         # File system monitoring (watchdog)
+│
+├── transcription/         # Audio processing
+│   ├── whisper.py         # faster-whisper transcription
+│   └── vocab.py           # Vocab builder for Whisper
+│
+├── rag/
+│   └── retriever.py       # LanceDB semantic search
+│
+├── llm/
+│   └── ollama.py          # Ollama API wrapper
+│
+├── vault/
+│   ├── unprocessed.py     # Note queue manager
+│   ├── logger.py          # Markdown audit logging
+│   └── writer.py          # (Unused) Direct vault writing
+│
+├── .github/workflows/      # CI/CD pipelines
+│   ├── test.yml           # Lint and type check
+│   └── scheduled.yml      # Nightly test runs
+│
+├── com.vaultassistant.plist              # launchd service (API)
+├── com.vaultassistant.processor.plist    # launchd service (processor)
+│
+├── TEST_CASES.md          # Query endpoint test suite
+├── TEST_CAPTURE_CASES.md  # Capture endpoint test cases
+├── CAPTURE_AUDIT_RESULTS.md  # Test results and analysis
+├── pyproject.toml         # Dependencies (uv)
+├── .env.example           # Configuration template
+└── README.md              # This file
+```
 
 ## Troubleshooting
 

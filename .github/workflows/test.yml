@@ -1,0 +1,41 @@
+name: Test & Lint
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint with ruff
+        run: uv run ruff check --select=E9,F63,F7,F82 --show-fixes .
+
+      - name: Format check with ruff
+        run: uv run ruff format --check .
+
+      - name: Type check with mypy
+        run: uv run mypy main.py processor.py --ignore-missing-imports
+
+      - name: Import check
+        run: |
+          uv run python -c "import main; import processor; print('✅ All imports successful')"

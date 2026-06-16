@@ -1,0 +1,71 @@
+name: Scheduled Tests
+
+on:
+  schedule:
+    # Run nightly at 2 AM UTC (10 PM ET)
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint with ruff
+        run: uv run ruff check .
+
+      - name: Format check with ruff
+        run: uv run ruff format --check .
+
+      - name: Type check with mypy
+        run: uv run mypy main.py processor.py config.py --ignore-missing-imports
+
+      - name: Syntax validation
+        run: |
+          uv run python -m py_compile main.py
+          uv run python -m py_compile processor.py
+          uv run python -m py_compile config.py
+
+      - name: Import all modules
+        run: |
+          uv run python -c "
+          import sys
+          modules = [
+              'main', 'processor', 'config',
+              'indexer.chunker', 'indexer.embedder', 'indexer.store', 'indexer.watcher',
+              'transcription.whisper', 'transcription.vocab',
+              'rag.retriever',
+              'llm.ollama',
+              'vault.unprocessed', 'vault.logger', 'vault.writer'
+          ]
+          for m in modules:
+              try:
+                  __import__(m)
+                  print(f'✅ {m}')
+              except Exception as e:
+                  print(f'❌ {m}: {e}')
+                  sys.exit(1)
+          "
+
+      - name: Check test documentation
+        run: |
+          ls -la TEST_CASES.md TEST_CAPTURE_CASES.md CAPTURE_AUDIT_RESULTS.md
+          echo "✅ Test documentation present"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "⚠️ Scheduled tests failed. Check the run details above."
+          exit 1
