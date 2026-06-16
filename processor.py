@@ -27,7 +27,9 @@ CRITICAL DOMAIN RULES (DO NOT IGNORE):
 - "Gaming" folder: ONLY for video games, board games, gaming preferences - NEVER for other hobbies
 - "Work" folder: work projects, meetings, implementation details, professional decisions
 - "Technical" (Context): infrastructure documentation, system configs, architecture - NOT personal preferences
-- "Preferences" (Context): personal communication style, tool preferences, working habits - NOT infrastructure
+- "Preferences" (Context): how I like to communicate, tool choices, working style preferences
+  Examples: "I prefer concise responses", "I use uv for package management", "I like direct feedback"
+  NOT about preferences for things (like bike gear) - those go to the thing's folder (Cycling, etc)
 
 FOLDER CHOICES: Choose exactly ONE
 - For Life: Goals, Projects, Health, Work, Family, Gaming, Cycling, Music, Home, Homelab, Other
@@ -36,13 +38,13 @@ FOLDER CHOICES: Choose exactly ONE
 
 FILENAME: A short descriptive title (max 5 words) ending with .md
 
-DECISION TREE:
-1. Is this about cycling, bikes, or training? → Life/Cycling
-2. Is this about work/professional? → Life/Work
-3. Is this a personal meeting/discussion note? → Life/Work (not Context/Technical)
-4. Is this about infrastructure config/setup documentation? → Context/Technical
-5. Is this about preferences (how you like to work/communicate)? → Context/Preferences
-6. Is this about a personal hobby/interest (non-work)? → Life/{appropriate hobby folder}
+DECISION TREE (CHECK IN THIS ORDER):
+1. Is this about communication style, preferences, or how I like to work/communicate? → Context/Preferences (HIGHEST PRIORITY)
+2. Is this a meeting or discussion note with another person (even if technical topic)? → Life/Work
+3. Is this about cycling, bikes, training, or fitness? → Life/Cycling
+4. Is this a personal update about completing/working on a project? → Life/Work (includes code implementation, work tasks)
+5. Is this documentation/reference about how to set up a system or configure infrastructure (NOT a personal project update)? → Context/Technical
+6. Is this about a personal hobby/interest (non-work)? → Life/[appropriate hobby folder]
 
 Return ONLY valid JSON with no markdown or explanation:
 {{
