@@ -3,15 +3,9 @@ from pathlib import Path
 from config import Config
 from transcription.vocab import get_vocab
 
-# Try to import mlx-whisper; fallback to faster-whisper
-try:
-    import mlx_whisper
-    _use_mlx = True
-    _faster_whisper_model = None
-except ImportError:
-    _use_mlx = False
-    from faster_whisper import WhisperModel
-    _faster_whisper_model = None
+# Use faster-whisper (more reliable than mlx-whisper)
+from faster_whisper import WhisperModel
+_whisper_model = None
 
 
 def _infer_audio_ext(content_type: str) -> str:
@@ -38,30 +32,22 @@ async def transcribe_audio(audio_bytes: bytes, content_type: str = "audio/mp4") 
         temp_file.write(audio_bytes)
         temp_file.close()
 
-        if _use_mlx:
-            result = mlx_whisper.transcribe(
-                temp_file.name,
-                path_or_hf_repo=Config.WHISPER_MODEL,
-                initial_prompt=vocab,
-                language=Config.WHISPER_LANGUAGE,
+        global _whisper_model
+        if _whisper_model is None:
+            _whisper_model = WhisperModel(
+                "base",
+                device="cpu",
+                compute_type="int8",
             )
-        else:
-            global _faster_whisper_model
-            if _faster_whisper_model is None:
-                _faster_whisper_model = WhisperModel(
-                    Config.WHISPER_MODEL.split("/")[-1],
-                    device="cpu",
-                    compute_type="int8",
-                )
 
-            segments, _ = _faster_whisper_model.transcribe(
-                temp_file.name,
-                language=Config.WHISPER_LANGUAGE,
-                initial_prompt=vocab,
-            )
-            result = {"text": "".join(s.text for s in segments)}
+        segments, _ = _whisper_model.transcribe(
+            temp_file.name,
+            language=Config.WHISPER_LANGUAGE,
+            initial_prompt=vocab,
+        )
+        result = "".join(s.text for s in segments)
 
-        return result["text"].strip()
+        return result.strip()
 
     finally:
         if temp_file:
