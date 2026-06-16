@@ -23,8 +23,8 @@ services:
     ports:
       - "8765:8765"
     volumes:
-      # Mount vault (see DOCKER.md for iCloud Drive on macOS)
-      - ${VAULT_PATH}:/vault:ro
+      # Bind-mount vault with full access
+      - ${VAULT_PATH}:/vault
       # LanceDB index cache (persistent across restarts)
       - vault-assistant-lancedb:/app/.lancedb
       # Unprocessed notes queue (shared with processor)
@@ -49,7 +49,7 @@ services:
       dockerfile: Dockerfile.processor
     container_name: vault-assistant-processor
     volumes:
-      # Mount vault (RW for writing categorized notes)
+      # Bind-mount vault with full access
       - ${VAULT_PATH}:/vault
       # Unprocessed notes queue (shared with API)
       - vault-assistant-unprocessed:/root/.vault-assistant/unprocessed

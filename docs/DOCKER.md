@@ -6,11 +6,11 @@ Run vault-assistant in Docker containers. Ollama and Whisper remain on your host
 
 ```
 Host Machine
-├── Ollama (GPU accelerated)
+├── Ollama (GPU accelerated, port 11434)
 ├── Whisper (hardware accelerated, mlx-whisper on Apple Silicon)
 └── Vault (iCloud Drive or local folder)
 
-Docker Network
+Docker Containers (shared access)
 ├── vault-assistant-api (FastAPI server, port 8765)
 └── vault-assistant-processor (note categorization service)
 ```
@@ -18,7 +18,7 @@ Docker Network
 **Why this setup?**
 - Ollama needs GPU access (CUDA, AMD ROCm, Apple Metal)
 - Whisper benefits from hardware acceleration (mlx on Apple Silicon)
-- Vault stays on host for seamless Obsidian integration
+- Both containers bind-mount the vault with full read-write access
 - All vault-assistant code runs in containers for isolation and repeatability
 
 ## Prerequisites
@@ -119,19 +119,14 @@ curl http://localhost:8765/index/status
 
 ### macOS with iCloud Drive
 
-The tricky part: iCloud Drive syncing and Docker file access.
-
-**Safe approach:** Read-only vault access in API container, write access in processor only.
+Both containers have full read-write access to the vault:
 
 ```bash
 # .env
 VAULT_PATH=/Users/alex/Library/Mobile\ Documents/iCloud~md~obsidian/Documents/iCloud
 ```
 
-**Why only processor writes?**
-- API only reads vault for searching (read-only in docker-compose.yml)
-- Processor writes new categorized notes
-- Reduces iCloud sync conflicts from multiple processes
+Docker will bind-mount this directory to `/vault` in both containers.
 
 **If you get permission errors:**
 
@@ -140,6 +135,8 @@ VAULT_PATH=/Users/alex/Library/Mobile\ Documents/iCloud~md~obsidian/Documents/iC
 # Docker Desktop → Preferences → Resources → File Sharing
 # Add: /Users/alex/Library/Mobile Documents/iCloud~md~obsidian
 ```
+
+**Note on iCloud sync:** Both the API and processor access the vault directly. iCloud handles syncing automatically. For large batches of writes, consider brief pauses between processor runs.
 
 ### Local Vault Folder
 
@@ -218,27 +215,6 @@ curl -X POST http://localhost:8765/transcribe-and-query \
 ```
 
 ## iCloud Drive Considerations
-
-### The Problem
-
-iCloud Drive on macOS:
-- Syncs files in background
-- Optimizes storage (some files offline)
-- Can conflict if multiple processes access simultaneously
-
-### The Solution
-
-1. **API container** (queries): Read-only mount
-   - Searches vault files
-   - No writes, no sync conflicts
-
-2. **Processor container** (writes): Read-write mount
-   - Adds new categorized notes
-   - Separate from query operations
-
-3. **Host Obsidian**: Direct filesystem access
-   - Edits notes normally
-   - iCloud syncs seamlessly
 
 ### Troubleshooting iCloud Issues
 
