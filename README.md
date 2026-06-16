@@ -8,8 +8,10 @@ Voice-driven personal knowledge base backend for macOS. Transcribe voice queries
 - **Semantic Search**: Vector embeddings via Ollama (nomic-embed-text) stored in LanceDB
 - **RAG Generation**: LLM-powered answers from your vault context (Ollama)
 - **Vault Indexing**: Automatic file watching and markdown-aware chunking
-- **Vault Capture**: Save transcribed thoughts to daily notes or inbox
+- **Smart Note Capture**: Save voice/text notes to processing queue
+- **Auto-Processing**: LLM-powered categorization and formatting into vault structure
 - **Text API**: Pure text endpoints for programmatic access
+- **Scheduled Processor**: launchd-based periodic processing of unprocessed notes
 - **launchd Service**: Native macOS background service (no Docker)
 
 ## Prerequisites
@@ -76,6 +78,65 @@ To stop:
 launchctl unload ~/Library/LaunchAgents/com.vaultassistant.plist
 ```
 
+## Note Processing Workflow
+
+### How It Works
+
+1. **Capture**: Voice/text notes are saved to `~/.vault-assistant/unprocessed/` (not directly to vault)
+2. **Process**: A scheduled job reads unprocessed notes and:
+   - Uses LLM to categorize each note (Life/, Context/, or Archive/)
+   - Generates appropriate YAML frontmatter
+   - Places note in the correct vault location
+   - Marks as processed and removes from queue
+
+### Install Processor Service
+
+The processor runs automatically on a 30-minute schedule:
+
+```bash
+cp com.vaultassistant.processor.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.vaultassistant.processor.plist
+```
+
+### Manual Processing
+
+Run the processor manually anytime:
+
+```bash
+uv run processor.py
+```
+
+Example output:
+```
+Found 2 unprocessed note(s).
+
+Processing: 2026-06-16T16-44-09.883950_text_579e6a5f.md
+  → Saved to: Context/Technical/Kubernetes Operator Research Notes.md
+  ✓ Processed
+Processing: 2026-06-16T16-44-18.727715_voice_ca2ddac1.md
+  → Saved to: Life/Gaming/Easier Final Boss.md
+  ✓ Processed
+
+Processing complete: 2 succeeded, 0 failed
+```
+
+### Categorization Rules
+
+The processor reads your `AGENTS.md` vault rules and categorizes notes as:
+
+- **Life/** - Personal goals, projects, decisions, recurring tasks, life events
+- **Context/** - Technical infrastructure, preferences, communication style, interests
+- **Archive/** - Completed work, historical material, deprecated configs
+
+Within each folder, it creates subfolders like Projects, Goals, Technical, Preferences, etc.
+
+### View Processing Logs
+
+```bash
+tail -f ~/.vault-assistant/logs/processor-stdout.log
+tail -f ~/.vault-assistant/logs/processor-stderr.log
+```
+
 ## API Endpoints
 
 ### Health Check
@@ -129,15 +190,17 @@ POST /transcribe-and-capture
 Content-Type: multipart/form-data
 
 audio: <file>      # m4a, wav, mp3, etc.
-target: "daily"    # or "inbox" (optional, default "daily")
 ```
 Response:
 ```json
 {
   "transcription": "remember to review quarterly goals",
-  "written_to": "2026-06-16.md"
+  "saved_to": "2026-06-16T16-44-18.727715_voice_ca2ddac1.md",
+  "status": "pending_processing"
 }
 ```
+
+Note: Audio is transcribed and saved to the unprocessed queue. The processor will categorize and place it in the vault based on content (Life/, Context/, or Archive/).
 
 ### Text Query
 ```bash
@@ -163,16 +226,18 @@ POST /capture
 Content-Type: application/json
 
 {
-  "text": "update: finished the design review",
-  "target": "daily"
+  "text": "update: finished the design review"
 }
 ```
 Response:
 ```json
 {
-  "written_to": "2026-06-16.md"
+  "saved_to": "2026-06-16T16-44-09.883950_text_579e6a5f.md",
+  "status": "pending_processing"
 }
 ```
+
+Note: Text is saved to the unprocessed queue. The processor will categorize and place it in the vault based on content (Life/, Context/, or Archive/).
 
 ## Siri Shortcuts Setup
 
@@ -199,9 +264,9 @@ Creates a shortcut to ask questions and listen to answers.
 
 **Tip**: Replace the URL with your Mac's Tailscale IP for on-the-go access. Find it via `tailscale ip` on your Mac.
 
-### "Note to Vault"
+### "Capture to Vault"
 
-Captures voice memos to your daily note.
+Captures voice memos for automatic processing and categorization.
 
 **Steps:**
 
@@ -213,12 +278,18 @@ Captures voice memos to your daily note.
    - Method: POST
    - Request Body: **Form**
    - Add field: Name = `audio`, File = the audio from step 2
-   - Add field: Name = `target`, Text = `daily`
 4. Add action: **Get Dictionary Value**
    - Key: `transcription`
    - Dictionary: result from step 3
 5. Add action: **Show Notification**
    - Body: the transcription value
+
+**Workflow:**
+- Audio is transcribed immediately
+- Note is saved to processing queue (`~/.vault-assistant/unprocessed/`)
+- Processor runs every 30 minutes and auto-categorizes it into your vault
+- You get a confirmation with the transcription right away
+- Note appears in appropriate vault folder (Life/, Context/, or Archive/) within 30 minutes
 
 Both shortcuts can be pinned to Siri by setting a voice phrase. Then you can invoke them with "Hey Siri, [shortcut name]" with your phone in your pocket.
 
