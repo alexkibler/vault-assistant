@@ -102,6 +102,21 @@ docker compose logs -f api
 docker compose logs -f processor
 ```
 
+The processor runs automatically every 30 minutes (configurable via `PROCESSOR_INTERVAL` in .env).
+
+You can customize the interval:
+
+```bash
+# In .env
+PROCESSOR_INTERVAL=15  # Process every 15 minutes instead
+```
+
+Then restart the processor container:
+
+```bash
+docker compose restart processor
+```
+
 ### 4. Verify Setup
 
 ```bash
@@ -186,11 +201,26 @@ Services run in background automatically:
 # Check status
 docker compose ps
 
-# View logs
+# View API logs
 docker compose logs -f api
+
+# View processor logs (runs on schedule)
+docker compose logs -f processor
 
 # Stop services
 docker compose down
+```
+
+### Manual Processor Run
+
+To process notes immediately without waiting for the schedule:
+
+```bash
+# Run processor once
+docker compose exec processor uv run python processor.py
+
+# View the result
+docker compose logs processor --tail 20
 ```
 
 ### Query the API

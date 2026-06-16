@@ -42,7 +42,7 @@ services:
       retries: 3
       start_period: 40s
 
-  # Note processor (categorizes and saves notes to vault)
+  # Note processor (categorizes and saves notes to vault on a schedule)
   processor:
     build:
       context: .
@@ -59,6 +59,8 @@ services:
       VAULT_PATH: /vault
       # Host machine Ollama (not in Docker)
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      # Process notes every N minutes (default: 30)
+      PROCESSOR_INTERVAL: ${PROCESSOR_INTERVAL:-30}
     restart: unless-stopped
 
 volumes:
