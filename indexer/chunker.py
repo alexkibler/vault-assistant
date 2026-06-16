@@ -99,9 +99,9 @@ def _split_section(
         if estimate_tokens(section) < 50:
             return []  # Merge to parent
 
-        context_prefix = f"[Note: {title}]\n"
+        context_prefix = f"From {title}. "
         if section_header:
-            context_prefix += f"[Section: {section_header}]\n\n"
+            context_prefix += f"Section: {section_header}. "
 
         chunk_text = context_prefix + section.strip()
         chunks.append(
@@ -123,9 +123,9 @@ def _split_section(
         test_chunk = current_chunk + para + "\n\n"
         if estimate_tokens(test_chunk) > 400 and current_chunk:
             # Finalize current chunk
-            context_prefix = f"[Note: {title}]\n"
+            context_prefix = f"From {title}. "
             if section_header:
-                context_prefix += f"[Section: {section_header}]\n\n"
+                context_prefix += f"Section: {section_header}. "
 
             chunk_text = context_prefix + current_chunk.strip()
             chunks.append(
@@ -145,9 +145,9 @@ def _split_section(
 
     # Final chunk
     if current_chunk.strip():
-        context_prefix = f"[Note: {title}]\n"
+        context_prefix = f"From {title}. "
         if section_header:
-            context_prefix += f"[Section: {section_header}]\n\n"
+            context_prefix += f"Section: {section_header}. "
 
         chunk_text = context_prefix + current_chunk.strip()
         chunks.append(
