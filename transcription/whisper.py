@@ -5,6 +5,7 @@ from transcription.vocab import get_vocab
 
 # Use faster-whisper (more reliable than mlx-whisper)
 from faster_whisper import WhisperModel
+
 _whisper_model = None
 
 

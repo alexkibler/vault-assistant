@@ -22,6 +22,7 @@ from rag.retriever import retrieve
 from llm.ollama import chat_completion
 from vault.unprocessed import save_unprocessed_note
 
+
 # Request models
 class QueryRequest(BaseModel):
     text: str

@@ -47,9 +47,7 @@ def _generate_chunk_id(file_path: str, chunk_index: int) -> str:
     return hashlib.sha256(f"{file_path}:{chunk_index}".encode()).hexdigest()
 
 
-async def upsert_chunks(
-    file_path: Path, chunks: list[dict], embeddings: list[list[float]], modified_at: float
-) -> int:
+async def upsert_chunks(file_path: Path, chunks: list[dict], embeddings: list[list[float]], modified_at: float) -> int:
     """Delete old chunks for file_path, insert new ones. Return count inserted."""
 
     def _upsert():

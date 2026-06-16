@@ -5,7 +5,7 @@ from config import Config
 async def chat_completion(
     system_prompt: str,
     user_message: str,
-    context_chunks: list[dict] = None,
+    context_chunks: list[dict] | None = None,
 ) -> str:
     """Call Ollama chat completion. Return assistant response."""
     if context_chunks is None:

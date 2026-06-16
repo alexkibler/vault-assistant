@@ -68,7 +68,9 @@ def build_vocab_cache() -> str:
     if custom_vocab_file.exists():
         try:
             custom_content = custom_vocab_file.read_text(encoding="utf-8")
-            custom_terms = [line.strip() for line in custom_content.split("\n") if line.strip() and not line.startswith("#")]
+            custom_terms = [
+                line.strip() for line in custom_content.split("\n") if line.strip() and not line.startswith("#")
+            ]
             vocab_terms.update(custom_terms)
         except Exception:
             pass

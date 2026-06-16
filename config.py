@@ -9,7 +9,11 @@ class Config:
     """Configuration loader with validation."""
 
     # Vault paths
-    VAULT_PATH = Path(os.getenv("VAULT_PATH", "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/MyVault")).expanduser().resolve()
+    VAULT_PATH = (
+        Path(os.getenv("VAULT_PATH", "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/MyVault"))
+        .expanduser()
+        .resolve()
+    )
     LANCEDB_PATH = Path(os.getenv("LANCEDB_PATH", "~/.vault-assistant/lancedb")).expanduser().resolve()
 
     # Ollama

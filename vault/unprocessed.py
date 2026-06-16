@@ -51,11 +51,13 @@ def get_unprocessed_notes() -> list[dict]:
     for filepath in sorted(UNPROCESSED_DIR.glob("*.md")):
         try:
             content = filepath.read_text(encoding="utf-8")
-            notes.append({
-                "filename": filepath.name,
-                "path": filepath,
-                "content": content,
-            })
+            notes.append(
+                {
+                    "filename": filepath.name,
+                    "path": filepath,
+                    "content": content,
+                }
+            )
         except Exception:
             continue
 

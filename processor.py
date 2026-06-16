@@ -84,9 +84,7 @@ async def categorize_note(note_text: str) -> dict:
     """Use LLM to categorize a note."""
     import json
 
-    system_prompt = (
-        "You are an expert at vault organization. Respond with ONLY valid JSON, no markdown or explanation."
-    )
+    system_prompt = "You are an expert at vault organization. Respond with ONLY valid JSON, no markdown or explanation."
     prompt = CATEGORIZATION_PROMPT.format(note_text=note_text)
 
     response = await chat_completion(system_prompt, prompt)
@@ -175,11 +173,7 @@ async def process_note(filepath: Path, note_data: dict) -> bool:
         print(f"  → Saved to: {relative_path}")
 
         # Log to vault
-        log_processed(
-            note_data["filename"],
-            str(relative_path),
-            category_info.get("reasoning", "")
-        )
+        log_processed(note_data["filename"], str(relative_path), category_info.get("reasoning", ""))
 
         # Mark as processed and delete
         delete_processed(note_data["filename"])
