@@ -18,23 +18,38 @@ from vault.logger import log_processed, log_error
 CATEGORIZATION_PROMPT = """Categorize this note into the vault structure.
 
 CATEGORY CHOICES: Choose exactly ONE
-- "Life" if about personal goals, projects, decisions, health, work, or life events
-- "Context" if about technical infrastructure, preferences, communication style, or interests
-- "Archive" if about completed work or historical material
+- "Life" if about personal goals, projects, decisions, health, work, life events, hobbies, training, fitness
+- "Context" if about technical infrastructure documentation, system preferences, communication style, learning interests
+- "Archive" if about completed historical projects
+
+CRITICAL DOMAIN RULES (DO NOT IGNORE):
+- "Cycling" folder: ONLY for bikes, rides, training, fitness, cycling equipment, gravel bikes, drivetrain
+- "Gaming" folder: ONLY for video games, board games, gaming preferences - NEVER for other hobbies
+- "Work" folder: work projects, meetings, implementation details, professional decisions
+- "Technical" (Context): infrastructure documentation, system configs, architecture - NOT personal preferences
+- "Preferences" (Context): personal communication style, tool preferences, working habits - NOT infrastructure
 
 FOLDER CHOICES: Choose exactly ONE
 - For Life: Goals, Projects, Health, Work, Family, Gaming, Cycling, Music, Home, Homelab, Other
 - For Context: Technical, Preferences, Identity, Interests, Home, Other
 - For Archive: Completed Projects, Old Configs, Other
 
-FILENAME: A descriptive title ending with .md
+FILENAME: A short descriptive title (max 5 words) ending with .md
+
+DECISION TREE:
+1. Is this about cycling, bikes, or training? → Life/Cycling
+2. Is this about work/professional? → Life/Work
+3. Is this a personal meeting/discussion note? → Life/Work (not Context/Technical)
+4. Is this about infrastructure config/setup documentation? → Context/Technical
+5. Is this about preferences (how you like to work/communicate)? → Context/Preferences
+6. Is this about a personal hobby/interest (non-work)? → Life/{appropriate hobby folder}
 
 Return ONLY valid JSON with no markdown or explanation:
 {{
   "category": "Life",
-  "folder": "Technical",
-  "filename": "Docker Setup Notes.md",
-  "reasoning": "brief reasoning"
+  "folder": "Cycling",
+  "filename": "Trek Checkpoint Setup.md",
+  "reasoning": "specific domain and reasoning"
 }}
 
 Note to categorize:
