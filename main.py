@@ -19,7 +19,7 @@ from indexer.watcher import start_watcher
 from transcription.vocab import build_vocab_cache, get_vocab
 from transcription.whisper import transcribe_audio
 from rag.retriever import retrieve
-from llm.ollama import chat_completion
+from llm.ollama import chat_completion, close_ollama_client
 from vault.unprocessed import save_unprocessed_note
 
 
@@ -135,6 +135,10 @@ async def lifespan(app: FastAPI):
         observer.stop()
         observer.join()
     print("Vault watcher stopped")
+
+    # Close Ollama client connection pool
+    await close_ollama_client()
+    print("Ollama client closed")
 
 
 app = FastAPI(

@@ -8,6 +8,27 @@ def estimate_tokens(text: str) -> int:
     return int(len(text.split()) * 1.3)
 
 
+def detect_content_type(content: str) -> str:
+    """Detect content type to enable adaptive chunking.
+
+    Returns:
+        One of: 'code', 'prose', 'mixed', 'list'
+    """
+    code_blocks = len(re.findall(r"```", content))
+    code_lines = len(re.findall(r"^\s{4,}[^\s]", content, re.MULTILINE))
+    list_items = len(re.findall(r"^[-*+]\s", content, re.MULTILINE))
+    total_lines = len(content.split("\n"))
+
+    if code_blocks > 3 or code_lines > total_lines * 0.3:
+        return "code"
+    elif list_items > total_lines * 0.2:
+        return "list"
+    elif code_blocks > 0 or code_lines > 0:
+        return "mixed"
+    else:
+        return "prose"
+
+
 def extract_frontmatter(text: str) -> tuple[dict, str]:
     """Extract YAML frontmatter from markdown and return (metadata, body)."""
     if not text.startswith("---"):
@@ -91,10 +112,23 @@ def _split_section(
     section_header: str,
     chunk_index: int,
 ) -> list[dict]:
-    """Split a section if it exceeds 400 tokens."""
+    """Split a section with adaptive chunk sizes based on content type.
+
+    Code and lists use smaller chunks (300 tokens) for precision.
+    Prose uses larger chunks (400 tokens) for coherence.
+    """
     chunks = []
 
-    if estimate_tokens(section) <= 400:
+    # Determine optimal chunk size based on content type
+    content_type = detect_content_type(section)
+    chunk_size = {
+        "code": 300,  # Smaller for code precision
+        "list": 300,  # Smaller for list items
+        "mixed": 350,  # Medium for mixed content
+        "prose": 400,  # Larger for prose coherence
+    }.get(content_type, 400)
+
+    if estimate_tokens(section) <= chunk_size:
         # Merge tiny sections upward
         if estimate_tokens(section) < 50:
             return []  # Merge to parent
@@ -121,7 +155,7 @@ def _split_section(
 
     for para in paragraphs:
         test_chunk = current_chunk + para + "\n\n"
-        if estimate_tokens(test_chunk) > 400 and current_chunk:
+        if estimate_tokens(test_chunk) > chunk_size and current_chunk:
             # Finalize current chunk
             context_prefix = f"From {title}. "
             if section_header:

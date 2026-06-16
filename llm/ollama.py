@@ -1,13 +1,49 @@
 import httpx
 from config import Config
 
+# Persistent client with connection pooling
+_ollama_client: httpx.AsyncClient | None = None
+
+
+async def get_ollama_client() -> httpx.AsyncClient:
+    """Get or create persistent Ollama client with connection pooling."""
+    global _ollama_client
+    if _ollama_client is None:
+        _ollama_client = httpx.AsyncClient(timeout=30.0)
+    return _ollama_client
+
+
+async def close_ollama_client() -> None:
+    """Close persistent Ollama client."""
+    global _ollama_client
+    if _ollama_client is not None:
+        await _ollama_client.aclose()
+        _ollama_client = None
+    return
+
 
 async def chat_completion(
     system_prompt: str,
     user_message: str,
     context_chunks: list[dict] | None = None,
+    retry_count: int = 2,
+    temperature: float = 0.7,
 ) -> str:
-    """Call Ollama chat completion. Return assistant response."""
+    """Call Ollama chat completion with automatic retry and error recovery.
+
+    Args:
+        system_prompt: System instruction for the LLM
+        user_message: User's message/query
+        context_chunks: Optional context chunks from RAG retrieval
+        retry_count: Number of retries on failure (default 2)
+        temperature: LLM temperature for diversity (lower = more focused)
+
+    Returns:
+        Assistant response text
+
+    Raises:
+        Exception: If all retries are exhausted
+    """
     if context_chunks is None:
         context_chunks = []
 
@@ -27,24 +63,39 @@ async def chat_completion(
         {"role": "user", "content": full_message},
     ]
 
-    try:
-        async with httpx.AsyncClient() as client:
+    client = await get_ollama_client()
+    last_error: Exception | None = None
+
+    for attempt in range(retry_count):
+        try:
             response = await client.post(
                 f"{Config.OLLAMA_BASE_URL}/api/chat",
-                json={"model": Config.OLLAMA_CHAT_MODEL, "messages": messages, "stream": False},
-                timeout=30.0,
+                json={
+                    "model": Config.OLLAMA_CHAT_MODEL,
+                    "messages": messages,
+                    "stream": False,
+                    "options": {"temperature": temperature},
+                },
             )
             response.raise_for_status()
             data = response.json()
             return data["message"]["content"]
-    except httpx.TimeoutException:
-        # Retry once on timeout
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{Config.OLLAMA_BASE_URL}/api/chat",
-                json={"model": Config.OLLAMA_CHAT_MODEL, "messages": messages, "stream": False},
-                timeout=30.0,
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data["message"]["content"]
+
+        except httpx.TimeoutException as e:
+            last_error = e
+            if attempt < retry_count - 1:
+                # On timeout, reduce temperature and retry for more focused response
+                temperature = max(0.1, temperature - 0.2)
+                continue
+            raise
+
+        except Exception as e:
+            last_error = e
+            if attempt < retry_count - 1:
+                continue
+            raise
+
+    # Should not reach here, but just in case
+    if last_error:
+        raise last_error
+    raise RuntimeError("Unexpected state in chat_completion retry loop")

@@ -188,8 +188,12 @@ async def process_note(filepath: Path, note_data: dict) -> bool:
         return False
 
 
-async def process_all_unprocessed():
-    """Process all unprocessed notes."""
+async def process_all_unprocessed(max_concurrent: int = 3):
+    """Process all unprocessed notes with optional concurrency.
+
+    Args:
+        max_concurrent: Maximum number of notes to process concurrently (default 3)
+    """
     notes = get_unprocessed_notes()
 
     if not notes:
@@ -197,13 +201,28 @@ async def process_all_unprocessed():
         return
 
     print(f"Found {len(notes)} unprocessed note(s).")
+    print(f"Processing up to {max_concurrent} notes concurrently...")
     print()
 
     success = 0
     failed = 0
 
-    for note in notes:
-        if await process_note(note["path"], note):
+    # Process with concurrency limit using asyncio.Semaphore
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    async def process_with_semaphore(note):
+        async with semaphore:
+            return await process_note(note["path"], note)
+
+    # Create tasks for all notes
+    tasks = [process_with_semaphore(note) for note in notes]
+
+    # Wait for all tasks to complete
+    results = await asyncio.gather(*tasks, return_exceptions=False)
+
+    # Count successes and failures
+    for result in results:
+        if result:
             success += 1
         else:
             failed += 1
