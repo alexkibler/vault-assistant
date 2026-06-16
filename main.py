@@ -27,6 +27,8 @@ from vault.unprocessed import save_unprocessed_note
 class QueryRequest(BaseModel):
     text: str
     top_k: int = 5
+    mode: str = "vault"  # "vault" (RAG), "general" (no context), "technical", "custom"
+    context_folder: str | None = None  # For "custom" mode
 
 
 class CaptureRequest(BaseModel):
@@ -173,22 +175,66 @@ async def index_status():
     }
 
 
-async def _query_vault(query_text: str, top_k: int = 5) -> dict:
-    """Shared logic for querying the vault with RAG."""
-    context_chunks = await retrieve(query_text, top_k)
+async def _query_vault(
+    query_text: str,
+    top_k: int = 5,
+    mode: str = "vault",
+    context_folder: str | None = None,
+) -> dict:
+    """Shared logic for querying with different modes.
 
-    system_prompt = (
-        "You are a personal assistant with access to the user's private knowledge base. "
-        "Answer based on the retrieved context below. Be concise — the user is listening "
-        "via AirPods. Keep responses under 3 sentences unless the user explicitly asks "
-        "for detail. If the context does not contain the answer, say so briefly."
-    )
+    Args:
+        query_text: User's query
+        top_k: Number of context chunks to retrieve
+        mode: Query mode - "vault" (RAG), "general" (no context), "technical", "custom"
+        context_folder: For "custom" mode, which vault folder to search
+
+    Returns:
+        Dictionary with answer and sources
+    """
+    # Determine system prompt based on mode
+    if mode == "general":
+        system_prompt = (
+            "You are a helpful AI assistant with general knowledge. "
+            "Provide accurate, concise answers. Keep responses under 3 sentences unless "
+            "the user asks for more detail."
+        )
+        context_chunks = []
+
+    elif mode == "technical":
+        system_prompt = (
+            "You are a technical assistant with access to the user's technical documentation. "
+            "Answer based on the technical context. Be precise and include implementation details. "
+            "If context is missing, say so."
+        )
+        context_chunks = await retrieve(query_text, top_k)
+        # Filter to technical context only (optional enhancement)
+
+    elif mode == "custom" and context_folder:
+        system_prompt = (
+            f"You are an assistant with access to the user's {context_folder} notes. "
+            "Answer based on the retrieved context. Be concise."
+        )
+        context_chunks = await retrieve(query_text, top_k)
+        # In production, filter to context_folder (requires retriever enhancement)
+
+    else:  # mode == "vault" (default)
+        system_prompt = (
+            "You are a personal assistant with access to the user's private knowledge base. "
+            "Answer based on the retrieved context below. Be concise — the user is listening "
+            "via AirPods. Keep responses under 3 sentences unless the user explicitly asks "
+            "for detail. If the context does not contain the answer, say so briefly."
+        )
+        context_chunks = await retrieve(query_text, top_k)
+
     answer = await chat_completion(system_prompt, query_text, context_chunks)
-    sources = [chunk["file_path"] for chunk in context_chunks]
+    sources = [chunk["file_path"] for chunk in context_chunks] if context_chunks else []
 
     return {
         "answer": answer,
         "sources": sources,
+        "mode": mode,
+        "context_used": len(context_chunks),
     }
 
 
@@ -202,8 +248,20 @@ async def _capture_note(text: str, source: str = "text") -> dict:
 
 
 @app.post("/transcribe-and-query")
-async def transcribe_and_query(audio: UploadFile = File(...), top_k: int = Form(5)):
-    """Transcribe audio and query the vault for answers."""
+async def transcribe_and_query(
+    audio: UploadFile = File(...),
+    top_k: int = Form(5),
+    mode: str = Form("vault"),
+    context_folder: str | None = Form(None),
+):
+    """Transcribe audio and query the vault for answers.
+
+    Args:
+        audio: Audio file to transcribe
+        top_k: Number of context chunks (for vault/technical modes)
+        mode: Query mode - "vault" (RAG), "general", "technical", "custom"
+        context_folder: For "custom" mode, which vault folder to search
+    """
     try:
         audio_bytes = await audio.read()
         content_type = audio.content_type or "audio/mp4"
@@ -212,7 +270,7 @@ async def transcribe_and_query(audio: UploadFile = File(...), top_k: int = Form(
         transcription = await transcribe_audio(audio_bytes, content_type)
 
         # Query vault
-        query_result = await _query_vault(transcription, top_k)
+        query_result = await _query_vault(transcription, top_k, mode, context_folder)
 
         return {
             "transcription": transcription,
@@ -249,9 +307,19 @@ async def transcribe_and_capture(
 
 @app.post("/query")
 async def query(req: QueryRequest):
-    """Query the vault (text-only)."""
+    """Query with different modes (text-only).
+
+    Query modes:
+    - vault: RAG queries against your knowledge base (default)
+    - general: General knowledge without vault context
+    - technical: Technical documentation queries
+    - custom: Specific folder queries (specify context_folder)
+
+    Example:
+        {"text": "How do I configure Ollama?", "mode": "technical", "top_k": 5}
+    """
     try:
-        return await _query_vault(req.text, req.top_k)
+        return await _query_vault(req.text, req.top_k, req.mode, req.context_folder)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
