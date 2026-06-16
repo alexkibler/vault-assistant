@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from pathlib import Path
+from vault.logger import log_pending
 
 UNPROCESSED_DIR = Path("~/.vault-assistant/unprocessed").expanduser()
 
@@ -34,6 +35,10 @@ processed: false
 """
 
     filepath.write_text(content, encoding="utf-8")
+
+    # Log to vault
+    log_pending(filename, source, text)
+
     return filename
 
 

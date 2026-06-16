@@ -12,6 +12,7 @@ from pathlib import Path
 from config import Config
 from llm.ollama import chat_completion
 from vault.unprocessed import get_unprocessed_notes, delete_processed
+from vault.logger import log_processed, log_error
 
 
 CATEGORIZATION_PROMPT = """Categorize this note into the vault structure.
@@ -153,7 +154,15 @@ async def process_note(filepath: Path, note_data: dict) -> bool:
 
         # Write to vault
         target_path.write_text(formatted, encoding="utf-8")
-        print(f"  → Saved to: {target_path.relative_to(Config.VAULT_PATH)}")
+        relative_path = target_path.relative_to(Config.VAULT_PATH)
+        print(f"  → Saved to: {relative_path}")
+
+        # Log to vault
+        log_processed(
+            note_data["filename"],
+            str(relative_path),
+            category_info.get("reasoning", "")
+        )
 
         # Mark as processed and delete
         delete_processed(note_data["filename"])
@@ -162,7 +171,9 @@ async def process_note(filepath: Path, note_data: dict) -> bool:
         return True
 
     except Exception as e:
-        print(f"  ✗ Error processing {filepath}: {e}")
+        error_msg = str(e)
+        print(f"  ✗ Error processing {filepath}: {error_msg}")
+        log_error(note_data["filename"], error_msg)
         return False
 
 
