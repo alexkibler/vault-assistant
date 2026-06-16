@@ -2,8 +2,9 @@ import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Body
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from config import Config
 from indexer.chunker import chunk_markdown
@@ -20,6 +21,17 @@ from transcription.whisper import transcribe_audio
 from rag.retriever import retrieve
 from llm.ollama import chat_completion
 from vault.writer import write_to_vault
+
+# Request models
+class QueryRequest(BaseModel):
+    text: str
+    top_k: int = 5
+
+
+class CaptureRequest(BaseModel):
+    text: str
+    target: str = "daily"
+
 
 # Global state
 index_ready = False
@@ -216,11 +228,11 @@ async def transcribe_and_capture(
 
 
 @app.post("/query")
-async def query(text: str, top_k: int = 5):
+async def query(req: QueryRequest):
     """Query the vault (text-only)."""
     try:
         # Retrieve context
-        context_chunks = await retrieve(text, top_k)
+        context_chunks = await retrieve(req.text, req.top_k)
 
         # Generate answer
         system_prompt = (
@@ -229,7 +241,7 @@ async def query(text: str, top_k: int = 5):
             "via AirPods. Keep responses under 3 sentences unless the user explicitly asks "
             "for detail. If the context does not contain the answer, say so briefly."
         )
-        answer = await chat_completion(system_prompt, text, context_chunks)
+        answer = await chat_completion(system_prompt, req.text, context_chunks)
 
         sources = [chunk["file_path"] for chunk in context_chunks]
 
@@ -243,10 +255,10 @@ async def query(text: str, top_k: int = 5):
 
 
 @app.post("/capture")
-async def capture(text: str, target: str = "daily"):
+async def capture(req: CaptureRequest):
     """Capture text to vault (no processing)."""
     try:
-        written_path = await write_to_vault(text, target)
+        written_path = await write_to_vault(req.text, req.target)
         return {"written_to": written_path}
 
     except Exception as e:
