@@ -1,0 +1,30 @@
+[project]
+name = "vault-assistant"
+version = "0.1.0"
+description = "Voice-driven personal knowledge base backend for macOS"
+requires-python = ">=3.11"
+authors = [{name = "Your Name", email = "you@example.com"}]
+
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "httpx>=0.25.0",
+    "python-dotenv>=1.0.0",
+    "lancedb>=0.3.0",
+    "pyarrow>=13.0.0",
+    "watchdog>=3.0.0",
+    "mlx-whisper>=0.1.0; platform_system == 'Darwin'",
+    "faster-whisper>=0.10.0",
+    "ollama>=0.1.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.4.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

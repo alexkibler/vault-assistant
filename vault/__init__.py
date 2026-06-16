@@ -1,0 +1,1 @@
+"""Vault file writing subsystem."""
