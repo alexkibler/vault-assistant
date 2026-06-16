@@ -12,27 +12,47 @@ A voice-driven personal knowledge base system for macOS that combines semantic s
 - ⚡ **Background Service** - launchd automatic processing every 30 minutes
 - 🏗️ **Smart Categorization** - Distinguishes between work projects, meetings, infrastructure docs, and personal preferences
 
-## Prerequisites
+## Quick Start (5 Minutes)
 
-- **macOS 12+** (tested on Mac mini M4)
-- **Python 3.11+** (included with macOS, or install via `brew install python@3.11`)
-- **uv** package manager: `brew install uv`
-- **Ollama**: `brew install ollama` and `ollama serve`
-- **Models**:
-  ```bash
-  ollama pull nomic-embed-text   # For embeddings
-  ollama pull llama3.1:8b         # For chat completion
-  ```
-- **Obsidian vault** in iCloud Drive or local filesystem
-
-## Setup
+**See [QUICKSTART.md](QUICKSTART.md) for step-by-step setup instructions.**
 
 ```bash
-cd /Volumes/1TB/Repos/vault-assistant
-cp .env.example .env
-# Edit .env — set VAULT_PATH to your actual vault path
+# 1. Clone
+git clone https://github.com/alexkibler/vault-assistant.git
+cd vault-assistant
+
+# 2. Install
 uv sync
+
+# 3. Configure
+cp .env.example .env
+# Edit .env and set VAULT_PATH to your vault location
+
+# 4. Start (in Terminal 1)
+ollama serve
+
+# 5. Start (in Terminal 2)
+uv run uvicorn main:app --host 0.0.0.0 --port 8765
+
+# 6. Test
+curl http://localhost:8765/health
 ```
+
+## Documentation
+
+- **[QUICKSTART.md](QUICKSTART.md)** - Get running in 5 minutes
+- **[docs/INSTALLATION.md](docs/INSTALLATION.md)** - Setup for macOS, Linux, Windows
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - How it works (RAG, categorization, LLM)
+- **[IMPROVEMENTS.md](IMPROVEMENTS.md)** - 8 major features (parallel processing, caching, etc.)
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - How to contribute
+
+## Prerequisites
+
+- **macOS 12+** (or Linux/WSL2 via Docker)
+- **Python 3.11+**
+- **uv** package manager
+- **Ollama** (installed and running)
+- **Obsidian vault** (iCloud Drive or local)
 
 ## Verify Installation
 
