@@ -168,6 +168,34 @@ async def index_status():
     }
 
 
+async def _query_vault(query_text: str, top_k: int = 5) -> dict:
+    """Shared logic for querying the vault with RAG."""
+    context_chunks = await retrieve(query_text, top_k)
+
+    system_prompt = (
+        "You are a personal assistant with access to the user's private knowledge base. "
+        "Answer based on the retrieved context below. Be concise — the user is listening "
+        "via AirPods. Keep responses under 3 sentences unless the user explicitly asks "
+        "for detail. If the context does not contain the answer, say so briefly."
+    )
+    answer = await chat_completion(system_prompt, query_text, context_chunks)
+    sources = [chunk["file_path"] for chunk in context_chunks]
+
+    return {
+        "answer": answer,
+        "sources": sources,
+    }
+
+
+async def _capture_note(text: str, source: str = "text") -> dict:
+    """Shared logic for capturing notes to the unprocessed queue."""
+    filename = save_unprocessed_note(text, source=source)
+    return {
+        "saved_to": filename,
+        "status": "pending_processing",
+    }
+
+
 @app.post("/transcribe-and-query")
 async def transcribe_and_query(audio: UploadFile = File(...), top_k: int = Form(5)):
     """Transcribe audio and query the vault for answers."""
@@ -178,24 +206,12 @@ async def transcribe_and_query(audio: UploadFile = File(...), top_k: int = Form(
         # Transcribe
         transcription = await transcribe_audio(audio_bytes, content_type)
 
-        # Retrieve context
-        context_chunks = await retrieve(transcription, top_k)
-
-        # Generate answer
-        system_prompt = (
-            "You are a personal assistant with access to the user's private knowledge base. "
-            "Answer based on the retrieved context below. Be concise — the user is listening "
-            "via AirPods. Keep responses under 3 sentences unless the user explicitly asks "
-            "for detail. If the context does not contain the answer, say so briefly."
-        )
-        answer = await chat_completion(system_prompt, transcription, context_chunks)
-
-        sources = [chunk["file_path"] for chunk in context_chunks]
+        # Query vault
+        query_result = await _query_vault(transcription, top_k)
 
         return {
             "transcription": transcription,
-            "answer": answer,
-            "sources": sources,
+            **query_result,
         }
 
     except Exception as e:
@@ -214,13 +230,12 @@ async def transcribe_and_capture(
         # Transcribe
         transcription = await transcribe_audio(audio_bytes, content_type)
 
-        # Save to unprocessed folder
-        filename = save_unprocessed_note(transcription, source="voice")
+        # Capture note
+        capture_result = await _capture_note(transcription, source="voice")
 
         return {
             "transcription": transcription,
-            "saved_to": filename,
-            "status": "pending_processing",
+            **capture_result,
         }
 
     except Exception as e:
@@ -231,25 +246,7 @@ async def transcribe_and_capture(
 async def query(req: QueryRequest):
     """Query the vault (text-only)."""
     try:
-        # Retrieve context
-        context_chunks = await retrieve(req.text, req.top_k)
-
-        # Generate answer
-        system_prompt = (
-            "You are a personal assistant with access to the user's private knowledge base. "
-            "Answer based on the retrieved context below. Be concise — the user is listening "
-            "via AirPods. Keep responses under 3 sentences unless the user explicitly asks "
-            "for detail. If the context does not contain the answer, say so briefly."
-        )
-        answer = await chat_completion(system_prompt, req.text, context_chunks)
-
-        sources = [chunk["file_path"] for chunk in context_chunks]
-
-        return {
-            "answer": answer,
-            "sources": sources,
-        }
-
+        return await _query_vault(req.text, req.top_k)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -258,12 +255,7 @@ async def query(req: QueryRequest):
 async def capture(req: CaptureRequest):
     """Capture text to unprocessed notes."""
     try:
-        filename = save_unprocessed_note(req.text, source="text")
-        return {
-            "saved_to": filename,
-            "status": "pending_processing",
-        }
-
+        return await _capture_note(req.text, source="text")
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
