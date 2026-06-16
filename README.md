@@ -42,6 +42,7 @@ curl http://localhost:8765/health
 
 - **[QUICKSTART.md](QUICKSTART.md)** - Get running in 5 minutes
 - **[docs/INSTALLATION.md](docs/INSTALLATION.md)** - Setup for macOS, Linux, Windows
+- **[docs/DOCKER.md](docs/DOCKER.md)** - Run in Docker (recommended for most users)
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - How it works (RAG, categorization, LLM)
 - **[IMPROVEMENTS.md](IMPROVEMENTS.md)** - 8 major features (parallel processing, caching, etc.)
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - How to contribute

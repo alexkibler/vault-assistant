@@ -164,34 +164,31 @@ See `docker-compose.yml` for configuration.
 
 ## Docker
 
-### Run in Container
+**For complete Docker setup including iCloud Drive on macOS, see [DOCKER.md](./DOCKER.md).**
+
+Quick start:
 
 ```bash
 git clone https://github.com/alexkibler/vault-assistant.git
 cd vault-assistant
 
-# Build
-docker build -t vault-assistant .
+# Start Ollama on host first
+ollama serve
 
-# Run (adjust volume paths for your system)
-docker run -it \
-  -p 8765:8765 \
-  -v /path/to/vault:/vault \
-  -e VAULT_PATH=/vault \
-  -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
-  vault-assistant
+# In another terminal, start containers
+docker compose up -d
+
+# Verify
+curl http://localhost:8765/health
 ```
 
-### Docker Compose
+Docker Compose handles:
+- FastAPI API server (port 8765)
+- Note processor service
+- Volume mounts for vault and indexes
+- Automatic restart on failure
 
-```bash
-# Copy and edit compose file
-cp docker-compose.example.yml docker-compose.yml
-# Edit paths in compose file
-
-docker-compose up -d
-docker-compose logs -f vault-assistant
-```
+For details on vault paths, iCloud Drive mounting, and troubleshooting, see [DOCKER.md](./DOCKER.md).
 
 ---
 

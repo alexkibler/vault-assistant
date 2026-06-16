@@ -1,0 +1,70 @@
+version: "3.8"
+
+# Docker setup for vault-assistant
+# Runs API and processor in containers; Ollama and Whisper run on host for GPU acceleration
+#
+# Prerequisites:
+#   - Ollama running on host: `ollama serve`
+#   - Vault mounted/accessible (see DOCKER.md for iCloud Drive setup)
+#
+# Start:
+#   docker compose up -d
+#
+# Notes:
+#   - Ollama stays on host for GPU acceleration (OLLAMA_BASE_URL=http://host.docker.internal:11434)
+#   - Whisper stays on host for hardware acceleration (mlx-whisper on Apple Silicon)
+#   - Vault path must be set in .env (VAULT_PATH=path/to/vault)
+
+services:
+  # Main API server (handles queries, transcriptions, captures)
+  api:
+    build: .
+    container_name: vault-assistant-api
+    ports:
+      - "8765:8765"
+    volumes:
+      # Mount vault (see DOCKER.md for iCloud Drive on macOS)
+      - ${VAULT_PATH}:/vault:ro
+      # LanceDB index cache (persistent across restarts)
+      - vault-assistant-lancedb:/app/.lancedb
+      # Unprocessed notes queue (shared with processor)
+      - vault-assistant-unprocessed:/root/.vault-assistant/unprocessed
+    environment:
+      VAULT_PATH: /vault
+      LANCEDB_PATH: /app/.lancedb
+      # Host machine Ollama (not in Docker)
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Note processor (categorizes and saves notes to vault)
+  processor:
+    build:
+      context: .
+      dockerfile: Dockerfile.processor
+    container_name: vault-assistant-processor
+    volumes:
+      # Mount vault (RW for writing categorized notes)
+      - ${VAULT_PATH}:/vault
+      # Unprocessed notes queue (shared with API)
+      - vault-assistant-unprocessed:/root/.vault-assistant/unprocessed
+      # Logs
+      - vault-assistant-logs:/root/.vault-assistant/logs
+    environment:
+      VAULT_PATH: /vault
+      # Host machine Ollama (not in Docker)
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    restart: unless-stopped
+
+volumes:
+  # Vector database persistence
+  vault-assistant-lancedb:
+  # Unprocessed notes queue (shared between API and processor)
+  vault-assistant-unprocessed:
+  # Processor and API logs
+  vault-assistant-logs:
