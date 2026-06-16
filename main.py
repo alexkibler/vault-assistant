@@ -20,7 +20,7 @@ from transcription.vocab import build_vocab_cache, get_vocab
 from transcription.whisper import transcribe_audio
 from rag.retriever import retrieve
 from llm.ollama import chat_completion
-from vault.writer import write_to_vault
+from vault.unprocessed import save_unprocessed_note
 
 # Request models
 class QueryRequest(BaseModel):
@@ -205,9 +205,8 @@ async def transcribe_and_query(audio: UploadFile = File(...), top_k: int = Form(
 @app.post("/transcribe-and-capture")
 async def transcribe_and_capture(
     audio: UploadFile = File(...),
-    target: str = Form("daily"),
 ):
-    """Transcribe audio and write to vault."""
+    """Transcribe audio and save to unprocessed notes."""
     try:
         audio_bytes = await audio.read()
         content_type = audio.content_type or "audio/mp4"
@@ -215,12 +214,13 @@ async def transcribe_and_capture(
         # Transcribe
         transcription = await transcribe_audio(audio_bytes, content_type)
 
-        # Write to vault
-        written_path = await write_to_vault(transcription, target)
+        # Save to unprocessed folder
+        filename = save_unprocessed_note(transcription, source="voice")
 
         return {
             "transcription": transcription,
-            "written_to": written_path,
+            "saved_to": filename,
+            "status": "pending_processing",
         }
 
     except Exception as e:
@@ -256,10 +256,13 @@ async def query(req: QueryRequest):
 
 @app.post("/capture")
 async def capture(req: CaptureRequest):
-    """Capture text to vault (no processing)."""
+    """Capture text to unprocessed notes."""
     try:
-        written_path = await write_to_vault(req.text, req.target)
-        return {"written_to": written_path}
+        filename = save_unprocessed_note(req.text, source="text")
+        return {
+            "saved_to": filename,
+            "status": "pending_processing",
+        }
 
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
