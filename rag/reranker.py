@@ -80,6 +80,7 @@ Return JSON array like: [{{"document_index": 0, "score": 8, "reason": "..."}}, .
 
     except Exception as e:
         import traceback
+
         print(f"Reranking failed: {e}")
         traceback.print_exc()
         # Fallback: return original results
