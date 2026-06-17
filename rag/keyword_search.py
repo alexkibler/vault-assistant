@@ -157,7 +157,9 @@ async def hybrid_search(
             unique_keyword_count += 1
 
     # Sort: vector results first, then keyword
-    sorted_results = sorted(merged.values(), key=lambda x: (x["_source"] != "vector", x["_rank"]))
+    sorted_results = sorted(
+        merged.values(), key=lambda x: (x["_source"] != "vector", int(x["_rank"]))  # type: ignore
+    )
 
     # Remove internal tracking fields
     for r in sorted_results:

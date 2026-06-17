@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 # In-memory conversation store (TODO: persist to DB for production)
-_conversations = {}
+_conversations: dict[str, dict] = {}
 _conversation_ttl = timedelta(hours=1)  # Clear old conversations after 1 hour
 
 

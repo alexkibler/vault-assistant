@@ -213,7 +213,7 @@ async def _query_vault(
     top_k: int = 5,
     mode: str = "vault",
     context_folder: str | None = None,
-    conversation_history: list[dict] | None = None,
+    conversation_history: dict | None = None,
 ) -> dict:
     """Shared logic for querying with different modes.
 
@@ -222,7 +222,7 @@ async def _query_vault(
         top_k: Number of context chunks to retrieve
         mode: Query mode - "vault" (RAG), "general" (no context), "technical", "custom"
         context_folder: For "custom" mode, which vault folder to search
-        conversation_history: Previous messages for follow-up context
+        conversation_history: Dict with conversation_id for follow-up context
 
     Returns:
         Dictionary with answer and sources
