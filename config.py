@@ -33,6 +33,16 @@ class Config:
     SERVICE_HOST = os.getenv("SERVICE_HOST", "0.0.0.0")
     SERVICE_PORT = int(os.getenv("SERVICE_PORT", "8765"))
 
+    # RAG Optimization
+    # Strategy: "basic", "expansion", "reranking", "hybrid", "optimized"
+    RAG_STRATEGY = os.getenv("RAG_STRATEGY", "optimized")
+    # Enable query expansion (2-3 related queries)
+    RAG_QUERY_EXPANSION = os.getenv("RAG_QUERY_EXPANSION", "true").lower() == "true"
+    # Enable reranking (LLM filters results by relevance)
+    RAG_RERANKING = os.getenv("RAG_RERANKING", "true").lower() == "true"
+    # Enable hybrid search (keyword + vector)
+    RAG_HYBRID_SEARCH = os.getenv("RAG_HYBRID_SEARCH", "true").lower() == "true"
+
     @classmethod
     def validate(cls):
         """Validate critical configuration at startup."""

@@ -19,7 +19,7 @@ from indexer.store import (
 from indexer.watcher import start_watcher
 from transcription.vocab import build_vocab_cache, get_vocab
 from transcription.whisper import transcribe_audio
-from rag.retriever import retrieve
+from rag.retriever import retrieve, retrieve_optimized
 from llm.ollama import chat_completion, close_ollama_client
 from vault.unprocessed import save_unprocessed_note
 
@@ -236,7 +236,13 @@ async def _query_vault(
             "via AirPods. Keep responses under 3 sentences unless the user explicitly asks "
             "for detail. If the context does not contain the answer, say so briefly."
         )
-        context_chunks = await retrieve(query_text, top_k)
+        # Use optimized retrieval with query expansion + reranking
+        try:
+            context_chunks = await retrieve_optimized(query_text, top_k)
+        except Exception as e:
+            # Fallback to basic retrieval if optimization fails
+            print(f"Optimized retrieval failed: {e}, falling back to basic retrieval")
+            context_chunks = await retrieve(query_text, top_k)
 
     answer = await chat_completion(system_prompt, query_text, context_chunks)
     sources = [chunk["file_path"] for chunk in context_chunks] if context_chunks else []
