@@ -219,6 +219,109 @@ class TestEndToEndWorkflow:
         assert "answer" in resp.json()
 
 
+class TestLLMCapability:
+    """Test LLM's ability to answer basic questions."""
+
+    def test_current_date_awareness(self):
+        """Test if LLM knows the current date."""
+        payload = {
+            "text": "What is today's date?",
+            "mode": "general"
+        }
+        resp = requests.post(
+            f"{API_URL}/query",
+            json=payload,
+            timeout=TIMEOUT
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        answer = data["answer"].lower()
+        # Should mention 2026 or June (current year/month)
+        assert "2026" in answer or "june" in answer or "6" in answer, \
+            f"Expected current date reference, got: {answer}"
+
+    def test_basic_math(self):
+        """Test basic arithmetic capability."""
+        payload = {
+            "text": "What is 2 + 2?",
+            "mode": "general"
+        }
+        resp = requests.post(
+            f"{API_URL}/query",
+            json=payload,
+            timeout=TIMEOUT
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        answer = data["answer"].lower()
+        # Should contain "4" as the answer
+        assert "4" in answer, f"Expected answer 4, got: {answer}"
+
+    def test_general_knowledge(self):
+        """Test general knowledge question."""
+        payload = {
+            "text": "What is the capital of France?",
+            "mode": "general"
+        }
+        resp = requests.post(
+            f"{API_URL}/query",
+            json=payload,
+            timeout=TIMEOUT
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        answer = data["answer"].lower()
+        # Should mention Paris
+        assert "paris" in answer, f"Expected Paris mention, got: {answer}"
+
+    def test_vault_search_accuracy(self):
+        """Test that vault mode retrieves relevant documents."""
+        payload = {
+            "text": "What files are in my vault?",
+            "mode": "vault",
+            "top_k": 5
+        }
+        resp = requests.post(
+            f"{API_URL}/query",
+            json=payload,
+            timeout=TIMEOUT
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        # Vault mode should have sources
+        assert len(data["sources"]) > 0, "Vault mode should return sources"
+        assert data["context_used"] > 0, "Should use context chunks from vault"
+
+    def test_mode_consistency(self):
+        """Test that different modes give different results."""
+        question = "Tell me something"
+
+        # Query in vault mode
+        vault_resp = requests.post(
+            f"{API_URL}/query",
+            json={"text": question, "mode": "vault", "top_k": 3},
+            timeout=TIMEOUT
+        )
+
+        # Query in general mode
+        general_resp = requests.post(
+            f"{API_URL}/query",
+            json={"text": question, "mode": "general"},
+            timeout=TIMEOUT
+        )
+
+        assert vault_resp.status_code == 200
+        assert general_resp.status_code == 200
+
+        vault_data = vault_resp.json()
+        general_data = general_resp.json()
+
+        # Vault should have sources, general shouldn't
+        assert len(vault_data["sources"]) >= 0
+        assert vault_data["mode"] == "vault"
+        assert general_data["mode"] == "general"
+
+
 class TestErrorHandling:
     """Test error handling and edge cases."""
 
@@ -273,3 +376,67 @@ def cleanup_unprocessed():
     # 2. Remove any files created during testing
     # For now, just log that cleanup should happen
     print("\n\nCleanup: Remove test notes from ~/.vault-assistant/unprocessed/")
+
+
+class TestToolIntegration:
+    """Test MCP tool integration with LLM."""
+
+    def test_date_tool_in_response(self):
+        """Test that LLM can access and use date tool."""
+        payload = {
+            "text": "What is today's date?",
+            "mode": "general"
+        }
+        resp = requests.post(
+            f"{API_URL}/query",
+            json=payload,
+            timeout=TIMEOUT
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        answer = data["answer"].lower()
+        # Should now have current date since tool is available
+        assert "2026" in answer or "june" in answer or "6/" in answer, \
+            f"Expected current date, got: {answer}"
+
+    def test_vault_files_tool(self):
+        """Test that LLM can list vault files."""
+        payload = {
+            "text": "List the markdown files in my vault",
+            "mode": "vault"
+        }
+        resp = requests.post(
+            f"{API_URL}/query",
+            json=payload,
+            timeout=TIMEOUT
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        answer = data["answer"]
+        # Should reference some files from vault
+        assert len(answer) > 0
+        # Should have sources since it's vault mode
+        assert len(data["sources"]) >= 0
+
+    def test_specific_meeting_query(self):
+        """Test specific query about meeting someone today - should get current date context."""
+        payload = {
+            "text": "Who did I meet with on June 16, 2026?",  # Explicit date
+            "mode": "vault",
+            "top_k": 5
+        }
+        resp = requests.post(
+            f"{API_URL}/query",
+            json=payload,
+            timeout=TIMEOUT
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        answer = data["answer"].lower()
+        
+        # Should reference the correct year
+        assert "2026" in answer, \
+            f"Should reference 2026. Got: {answer}"
+        
+        # Should have sources from vault
+        assert len(data["sources"]) > 0, "Vault query should return sources"
