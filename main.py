@@ -126,8 +126,9 @@ async def lifespan(app: FastAPI):
     # Start full index scan in background
     asyncio.create_task(_perform_full_index_scan())
 
-    # Start watchdog observer
-    observer = start_watcher(_on_vault_file_change)
+    # Start watchdog observer with current event loop
+    loop = asyncio.get_event_loop()
+    observer = start_watcher(_on_vault_file_change, loop)
     print("Vault watcher started")
 
     yield
