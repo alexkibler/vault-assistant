@@ -20,7 +20,15 @@ from indexer.watcher import start_watcher
 from transcription.vocab import build_vocab_cache, get_vocab
 from transcription.whisper import transcribe_audio
 from rag.retriever import retrieve, retrieve_optimized
+from rag.query_decomposer import decompose_query, retrieve_with_decomposition
 from llm.ollama import chat_completion, close_ollama_client
+from llm.conversation import (
+    create_conversation,
+    add_message,
+    get_conversation_history,
+    get_conversation_context,
+    cleanup_old_conversations,
+)
 from vault.unprocessed import save_unprocessed_note
 
 
@@ -30,6 +38,8 @@ class QueryRequest(BaseModel):
     top_k: int = 5
     mode: str = "vault"  # "vault" (RAG), "general" (no context), "technical", "custom"
     context_folder: str | None = None  # For "custom" mode
+    conversation_id: str | None = None  # Track conversation thread
+    is_followup: bool = False  # Mark as follow-up question
 
 
 class CaptureRequest(BaseModel):
@@ -186,11 +196,23 @@ async def index_status():
     }
 
 
+def _is_compound_question(query: str) -> bool:
+    """Detect if query has multiple parts (who AND what, etc)."""
+    compound_patterns = [
+        r"\band\b",  # "who and what"
+        r"\bthen\b",  # "first do this then"
+        r",\s*and\s",  # "X, and Y"
+        r"\?.*\?",  # "question? question?"
+    ]
+    return len(query) > 40 and any(re.search(p, query.lower()) for p in compound_patterns)
+
+
 async def _query_vault(
     query_text: str,
     top_k: int = 5,
     mode: str = "vault",
     context_folder: str | None = None,
+    conversation_history: list[dict] | None = None,
 ) -> dict:
     """Shared logic for querying with different modes.
 
@@ -199,10 +221,15 @@ async def _query_vault(
         top_k: Number of context chunks to retrieve
         mode: Query mode - "vault" (RAG), "general" (no context), "technical", "custom"
         context_folder: For "custom" mode, which vault folder to search
+        conversation_history: Previous messages for follow-up context
 
     Returns:
         Dictionary with answer and sources
     """
+    # Detect compound questions and increase context
+    is_compound = _is_compound_question(query_text)
+    effective_top_k = top_k * 2 if is_compound else top_k  # Double context for compound Q
+
     # Determine system prompt based on mode
     if mode == "general":
         system_prompt = (
@@ -230,28 +257,84 @@ async def _query_vault(
         # In production, filter to context_folder (requires retriever enhancement)
 
     else:  # mode == "vault" (default)
-        system_prompt = (
-            "You are a personal assistant with access to the user's private knowledge base. "
-            "Answer based on the retrieved context below. Be concise — the user is listening "
-            "via AirPods. Keep responses under 3 sentences unless the user explicitly asks "
-            "for detail. If the context does not contain the answer, say so briefly."
-        )
-        # Use optimized retrieval with query expansion + reranking
-        try:
-            context_chunks = await retrieve_optimized(query_text, top_k)
-        except Exception as e:
-            # Fallback to basic retrieval if optimization fails
-            print(f"Optimized retrieval failed: {e}, falling back to basic retrieval")
-            context_chunks = await retrieve(query_text, top_k)
+        # Enhanced synthesis for compound questions
+        if is_compound:
+            system_prompt = (
+                "You are a personal assistant synthesizing information from multiple notes. "
+                "The user is asking about multiple topics. Answer ALL parts of their question. "
+                "Use the retrieved context to comprehensively address each part. "
+                "Be clear about what you found for each part. Keep total response under 4 sentences unless more detail requested."
+            )
+        else:
+            system_prompt = (
+                "You are a personal assistant with access to the user's private knowledge base. "
+                "Answer based on the retrieved context below. Be concise — the user is listening "
+                "via AirPods. Keep responses under 3 sentences unless the user explicitly asks "
+                "for detail. If the context does not contain the answer, say so briefly."
+            )
 
-    answer = await chat_completion(system_prompt, query_text, context_chunks)
+        # Use decomposition for compound questions
+        if is_compound:
+            try:
+                decomp_result = await retrieve_with_decomposition(
+                    query_text, retrieve_optimized, top_k=effective_top_k
+                )
+                context_chunks = decomp_result["results"]
+                # Add decomposition info to system prompt for better synthesis
+                system_prompt += f"\n\n[Note: Question decomposed into: {', '.join(decomp_result['sub_questions'])}]"
+            except Exception as e:
+                print(f"Decomposition retrieval failed: {e}, using optimized retrieval")
+                try:
+                    context_chunks = await retrieve_optimized(query_text, effective_top_k)
+                except Exception as e2:
+                    print(f"Optimized retrieval also failed: {e2}, falling back to basic")
+                    context_chunks = await retrieve(query_text, effective_top_k)
+        else:
+            # Use optimized retrieval for simple questions
+            try:
+                context_chunks = await retrieve_optimized(query_text, top_k)
+            except Exception as e:
+                # Fallback to basic retrieval if optimization fails
+                print(f"Optimized retrieval failed: {e}, falling back to basic retrieval")
+                context_chunks = await retrieve(query_text, top_k)
+
+    # Inject conversation context if follow-up
+    final_user_message = query_text
+    if conversation_history:
+        conv_context = get_conversation_context(conversation_history.get("conversation_id", ""))
+        if conv_context:
+            final_user_message = f"{conv_context}\n\nNew question: {query_text}"
+
+    answer = await chat_completion(system_prompt, final_user_message, context_chunks)
     sources = [chunk["file_path"] for chunk in context_chunks] if context_chunks else []
+
+    # Store message in conversation history
+    conversation_id = conversation_history.get("conversation_id") if conversation_history else None
+    if conversation_id:
+        add_message(conversation_id, "user", query_text, metadata={"sources": sources})
+        add_message(
+            conversation_id,
+            "assistant",
+            answer,
+            metadata={"sources": sources, "context_used": len(context_chunks)},
+        )
+    else:
+        # Create new conversation for tracking
+        conversation_id = create_conversation()
+        add_message(conversation_id, "user", query_text, metadata={"sources": sources})
+        add_message(
+            conversation_id,
+            "assistant",
+            answer,
+            metadata={"sources": sources, "context_used": len(context_chunks)},
+        )
 
     return {
         "answer": answer,
         "sources": sources,
         "mode": mode,
         "context_used": len(context_chunks),
+        "conversation_id": conversation_id,  # Return for follow-ups
     }
 
 
@@ -332,11 +415,29 @@ async def query(req: QueryRequest):
     - technical: Technical documentation queries
     - custom: Specific folder queries (specify context_folder)
 
+    Conversation support:
+    - conversation_id: ID for multi-turn conversation (returned in response)
+    - is_followup: Mark as follow-up to use previous context
+
     Example:
         {"text": "How do I configure Ollama?", "mode": "technical", "top_k": 5}
+        Follow-up: {"text": "And what about that setting?", "conversation_id": "uuid", "is_followup": true}
     """
     try:
-        return await _query_vault(req.text, req.top_k, req.mode, req.context_folder)
+        conversation_info = None
+        if req.conversation_id or req.is_followup:
+            conversation_info = {
+                "conversation_id": req.conversation_id or create_conversation(),
+                "is_followup": req.is_followup,
+            }
+
+        return await _query_vault(
+            req.text,
+            req.top_k,
+            req.mode,
+            req.context_folder,
+            conversation_history=conversation_info,
+        )
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
