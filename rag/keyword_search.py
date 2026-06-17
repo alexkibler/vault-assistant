@@ -118,7 +118,7 @@ async def keyword_search(query: str, top_k: int = 5) -> list[dict]:
             pass
 
     # Sort by score and return top K
-    sorted_results = sorted(results.values(), key=lambda x: x["score"], reverse=True)  # type: ignore
+    sorted_results = sorted(results.values(), key=lambda x: x["score"], reverse=True)  # type: ignore[arg-type, return-value]
     return sorted_results[:top_k]
 
 
@@ -159,10 +159,10 @@ async def hybrid_search(
             unique_keyword_count += 1
 
     # Sort: vector results first, then keyword
-    def sort_key(item: dict) -> tuple[bool, int]:  # type: ignore
+    def sort_key(item: dict) -> tuple[bool, int]:
         return (item["_source"] != "vector", int(item["_rank"]))
 
-    sorted_results = sorted(merged.values(), key=sort_key)  # type: ignore
+    sorted_results = sorted(merged.values(), key=sort_key)  # type: ignore[arg-type]
 
     # Remove internal tracking fields
     for r in sorted_results:
