@@ -25,17 +25,50 @@ async def keyword_search(query: str, top_k: int = 5) -> list[dict]:
 
     # Extract keywords (ignore common words)
     stop_words = {
-        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-        "of", "with", "is", "are", "was", "were", "been", "be", "have", "has",
-        "do", "does", "did", "will", "would", "could", "should", "may", "might",
-        "i", "you", "he", "she", "it", "we", "they", "my", "your", "his", "her"
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "is",
+        "are",
+        "was",
+        "were",
+        "been",
+        "be",
+        "have",
+        "has",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "i",
+        "you",
+        "he",
+        "she",
+        "it",
+        "we",
+        "they",
+        "my",
+        "your",
+        "his",
+        "her",
     }
 
-    keywords = [
-        w.lower()
-        for w in re.findall(r"\b\w+\b", query)
-        if w.lower() not in stop_words and len(w) > 2
-    ]
+    keywords = [w.lower() for w in re.findall(r"\b\w+\b", query) if w.lower() not in stop_words and len(w) > 2]
 
     if not keywords:
         return []
@@ -124,10 +157,7 @@ async def hybrid_search(
             unique_keyword_count += 1
 
     # Sort: vector results first, then keyword
-    sorted_results = sorted(
-        merged.values(),
-        key=lambda x: (x["_source"] != "vector", x["_rank"])
-    )
+    sorted_results = sorted(merged.values(), key=lambda x: (x["_source"] != "vector", x["_rank"]))
 
     # Remove internal tracking fields
     for r in sorted_results:

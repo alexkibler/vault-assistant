@@ -16,18 +16,18 @@ def detect_tool_call(response: str) -> Optional[dict]:
     Or: <tool name="tool_name"><param name="param1">value1</param></tool>
     """
     # Pattern 1: [TOOL: name, params]
-    pattern1 = r'\[TOOL:\s*(\w+),?\s*(.*?)\]'
+    pattern1 = r"\[TOOL:\s*(\w+),?\s*(.*?)\]"
     match = re.search(pattern1, response)
     if match:
         tool_name = match.group(1)
         params_str = match.group(2)
         params = {}
-        for param in params_str.split(','):
-            if '=' in param:
-                key, val = param.split('=', 1)
-                params[key.strip()] = val.strip().strip('"\'')
+        for param in params_str.split(","):
+            if "=" in param:
+                key, val = param.split("=", 1)
+                params[key.strip()] = val.strip().strip("\"'")
         return {"tool": tool_name, "params": params, "full_match": match.group(0)}
-    
+
     # Pattern 2: <tool> tags
     pattern2 = r'<tool name="(\w+)">(.*?)</tool>'
     match = re.search(pattern2, response)
@@ -39,7 +39,7 @@ def detect_tool_call(response: str) -> Optional[dict]:
         for param_match in re.finditer(param_pattern, params_str):
             params[param_match.group(1)] = param_match.group(2)
         return {"tool": tool_name, "params": params, "full_match": match.group(0)}
-    
+
     return None
 
 
@@ -51,27 +51,19 @@ def handle_tool_call(response: str) -> tuple[str, Optional[dict]]:
     tool_call = detect_tool_call(response)
     if not tool_call:
         return response, None
-    
+
     tool_name = tool_call["tool"]
     params = tool_call["params"]
-    
+
     try:
         result = exec_tool(tool_name, params)
         # Replace tool call with clean result
         updated_response = response.replace(tool_call["full_match"], result)
-        return updated_response, {
-            "tool": tool_name,
-            "params": params,
-            "result": result
-        }
+        return updated_response, {"tool": tool_name, "params": params, "result": result}
     except Exception as e:
         error_msg = f"Error using {tool_name}: {str(e)}"
         updated_response = response.replace(tool_call["full_match"], error_msg)
-        return updated_response, {
-            "tool": tool_name,
-            "params": params,
-            "error": str(e)
-        }
+        return updated_response, {"tool": tool_name, "params": params, "error": str(e)}
 
 
 def format_tools_for_prompt(tools: dict) -> str:
@@ -85,9 +77,7 @@ def format_tools_for_prompt(tools: dict) -> str:
             for param_name, param_info in tool_info["parameters"].items():
                 prompt += f"  - {param_name}: {param_info.get('description', 'N/A')}\n"
         prompt += "Usage: [TOOL: {}, {}={}]\n".format(
-            tool_name,
-            ", ".join(tool_info.get("parameters", {}).keys()) or "no params",
-            "value"
+            tool_name, ", ".join(tool_info.get("parameters", {}).keys()) or "no params", "value"
         )
     prompt += "\n======================\n"
     return prompt

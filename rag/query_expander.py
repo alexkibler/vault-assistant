@@ -39,11 +39,7 @@ Return ONLY the alternative queries, one per line, without numbering or explanat
         )
 
         # Parse response - should be lines of queries
-        alternative_queries = [
-            q.strip()
-            for q in response.strip().split("\n")
-            if q.strip() and len(q.strip()) > 5
-        ]
+        alternative_queries = [q.strip() for q in response.strip().split("\n") if q.strip() and len(q.strip()) > 5]
 
         # Return original + generated (limit to max_variations)
         return [query] + alternative_queries[:max_variations]
@@ -54,9 +50,7 @@ Return ONLY the alternative queries, one per line, without numbering or explanat
         return [query]
 
 
-async def expand_and_search(
-    query: str, search_fn, top_k: int = 5, max_variations: int = 2
-) -> list[dict]:
+async def expand_and_search(query: str, search_fn, top_k: int = 5, max_variations: int = 2) -> list[dict]:
     """Expand query and search for all variations, merge results.
 
     Args:

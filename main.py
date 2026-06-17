@@ -277,9 +277,7 @@ async def _query_vault(
         # Use decomposition for compound questions
         if is_compound:
             try:
-                decomp_result = await retrieve_with_decomposition(
-                    query_text, retrieve_optimized, top_k=effective_top_k
-                )
+                decomp_result = await retrieve_with_decomposition(query_text, retrieve_optimized, top_k=effective_top_k)
                 context_chunks = decomp_result["results"]
                 # Add decomposition info to system prompt for better synthesis
                 system_prompt += f"\n\n[Note: Question decomposed into: {', '.join(decomp_result['sub_questions'])}]"

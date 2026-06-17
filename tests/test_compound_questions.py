@@ -22,9 +22,7 @@ class TestCompoundDetection:
 
     def test_and_detection(self):
         """Questions with 'and' should be detected."""
-        assert _is_compound_question(
-            "Who did I meet with today and what did we talk about?"
-        )
+        assert _is_compound_question("Who did I meet with today and what did we talk about?")
         assert _is_compound_question("Tell me who was there and what happened")
 
     def test_multiple_questions(self):

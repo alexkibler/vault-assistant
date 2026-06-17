@@ -64,16 +64,8 @@ class TestQueryEndpoint:
 
     def test_query_returns_json(self):
         """Verify query endpoint returns valid JSON."""
-        payload = {
-            "text": "test query",
-            "top_k": 3,
-            "mode": "vault"
-        }
-        resp = requests.post(
-            f"{API_URL}/query",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        payload = {"text": "test query", "top_k": 3, "mode": "vault"}
+        resp = requests.post(f"{API_URL}/query", json=payload, timeout=TIMEOUT)
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, dict)
@@ -83,15 +75,8 @@ class TestQueryEndpoint:
 
     def test_query_general_mode(self):
         """Test general knowledge mode (no vault context)."""
-        payload = {
-            "text": "What is 2+2?",
-            "mode": "general"
-        }
-        resp = requests.post(
-            f"{API_URL}/query",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        payload = {"text": "What is 2+2?", "mode": "general"}
+        resp = requests.post(f"{API_URL}/query", json=payload, timeout=TIMEOUT)
         assert resp.status_code == 200
         data = resp.json()
         assert data["mode"] == "general"
@@ -99,16 +84,8 @@ class TestQueryEndpoint:
 
     def test_query_technical_mode(self):
         """Test technical documentation mode."""
-        payload = {
-            "text": "How is the indexer configured?",
-            "top_k": 5,
-            "mode": "technical"
-        }
-        resp = requests.post(
-            f"{API_URL}/query",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        payload = {"text": "How is the indexer configured?", "top_k": 5, "mode": "technical"}
+        resp = requests.post(f"{API_URL}/query", json=payload, timeout=TIMEOUT)
         assert resp.status_code == 200
         data = resp.json()
         assert data["mode"] == "technical"
@@ -120,11 +97,7 @@ class TestCaptureEndpoint:
     def test_capture_text_note(self):
         """Verify text capture saves to queue."""
         payload = {"text": "Integration test note"}
-        resp = requests.post(
-            f"{API_URL}/capture",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        resp = requests.post(f"{API_URL}/capture", json=payload, timeout=TIMEOUT)
         assert resp.status_code == 200
         data = resp.json()
         assert "saved_to" in data
@@ -134,11 +107,7 @@ class TestCaptureEndpoint:
     def test_capture_creates_unprocessed_file(self):
         """Verify captured note appears in unprocessed queue."""
         payload = {"text": "Another integration test note"}
-        resp = requests.post(
-            f"{API_URL}/capture",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        resp = requests.post(f"{API_URL}/capture", json=payload, timeout=TIMEOUT)
         assert resp.status_code == 200
         data = resp.json()
 
@@ -155,21 +124,54 @@ class TestTranscribeAndQuery:
         """Create a minimal valid audio file for testing."""
         # This creates a very small WAV file (silence)
         # For real tests, use actual audio
-        wav_header = bytes([
-            0x52, 0x49, 0x46, 0x46,  # "RIFF"
-            0x24, 0x00, 0x00, 0x00,  # File size
-            0x57, 0x41, 0x56, 0x45,  # "WAVE"
-            0x66, 0x6d, 0x74, 0x20,  # "fmt "
-            0x10, 0x00, 0x00, 0x00,  # Subchunk1Size
-            0x01, 0x00,              # AudioFormat (PCM)
-            0x01, 0x00,              # NumChannels
-            0x44, 0xac, 0x00, 0x00,  # SampleRate (44100)
-            0x88, 0x58, 0x01, 0x00,  # ByteRate
-            0x02, 0x00,              # BlockAlign
-            0x10, 0x00,              # BitsPerSample
-            0x64, 0x61, 0x74, 0x61,  # "data"
-            0x00, 0x00, 0x00, 0x00,  # Subchunk2Size
-        ])
+        wav_header = bytes(
+            [
+                0x52,
+                0x49,
+                0x46,
+                0x46,  # "RIFF"
+                0x24,
+                0x00,
+                0x00,
+                0x00,  # File size
+                0x57,
+                0x41,
+                0x56,
+                0x45,  # "WAVE"
+                0x66,
+                0x6D,
+                0x74,
+                0x20,  # "fmt "
+                0x10,
+                0x00,
+                0x00,
+                0x00,  # Subchunk1Size
+                0x01,
+                0x00,  # AudioFormat (PCM)
+                0x01,
+                0x00,  # NumChannels
+                0x44,
+                0xAC,
+                0x00,
+                0x00,  # SampleRate (44100)
+                0x88,
+                0x58,
+                0x01,
+                0x00,  # ByteRate
+                0x02,
+                0x00,  # BlockAlign
+                0x10,
+                0x00,  # BitsPerSample
+                0x64,
+                0x61,
+                0x74,
+                0x61,  # "data"
+                0x00,
+                0x00,
+                0x00,
+                0x00,  # Subchunk2Size
+            ]
+        )
 
         audio_file = tmp_path / "test.wav"
         audio_file.write_bytes(wav_header)
@@ -179,11 +181,7 @@ class TestTranscribeAndQuery:
         """Verify transcribe endpoint is available."""
         with open(sample_audio, "rb") as f:
             files = {"audio": f}
-            resp = requests.post(
-                f"{API_URL}/transcribe-and-query",
-                files=files,
-                timeout=TIMEOUT
-            )
+            resp = requests.post(f"{API_URL}/transcribe-and-query", files=files, timeout=TIMEOUT)
 
         # May fail on actual transcription but endpoint should exist
         assert resp.status_code in [200, 400, 500]
@@ -196,25 +194,14 @@ class TestEndToEndWorkflow:
         """Verify note capture workflow."""
         # 1. Capture a note
         capture_payload = {"text": "E2E test: Important project milestone"}
-        resp = requests.post(
-            f"{API_URL}/capture",
-            json=capture_payload,
-            timeout=TIMEOUT
-        )
+        resp = requests.post(f"{API_URL}/capture", json=capture_payload, timeout=TIMEOUT)
         assert resp.status_code == 200
         capture_data = resp.json()
         assert capture_data["status"] == "pending_processing"
 
         # 2. Query should still work (note is in unprocessed queue)
-        query_payload = {
-            "text": "What is happening with projects?",
-            "mode": "vault"
-        }
-        resp = requests.post(
-            f"{API_URL}/query",
-            json=query_payload,
-            timeout=TIMEOUT
-        )
+        query_payload = {"text": "What is happening with projects?", "mode": "vault"}
+        resp = requests.post(f"{API_URL}/query", json=query_payload, timeout=TIMEOUT)
         assert resp.status_code == 200
         assert "answer" in resp.json()
 
@@ -224,33 +211,18 @@ class TestLLMCapability:
 
     def test_current_date_awareness(self):
         """Test if LLM knows the current date."""
-        payload = {
-            "text": "What is today's date?",
-            "mode": "general"
-        }
-        resp = requests.post(
-            f"{API_URL}/query",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        payload = {"text": "What is today's date?", "mode": "general"}
+        resp = requests.post(f"{API_URL}/query", json=payload, timeout=TIMEOUT)
         assert resp.status_code == 200
         data = resp.json()
         answer = data["answer"].lower()
         # Should mention 2026 or June (current year/month)
-        assert "2026" in answer or "june" in answer or "6" in answer, \
-            f"Expected current date reference, got: {answer}"
+        assert "2026" in answer or "june" in answer or "6" in answer, f"Expected current date reference, got: {answer}"
 
     def test_basic_math(self):
         """Test basic arithmetic capability."""
-        payload = {
-            "text": "What is 2 + 2?",
-            "mode": "general"
-        }
-        resp = requests.post(
-            f"{API_URL}/query",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        payload = {"text": "What is 2 + 2?", "mode": "general"}
+        resp = requests.post(f"{API_URL}/query", json=payload, timeout=TIMEOUT)
         assert resp.status_code == 200
         data = resp.json()
         answer = data["answer"].lower()
@@ -259,15 +231,8 @@ class TestLLMCapability:
 
     def test_general_knowledge(self):
         """Test general knowledge question."""
-        payload = {
-            "text": "What is the capital of France?",
-            "mode": "general"
-        }
-        resp = requests.post(
-            f"{API_URL}/query",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        payload = {"text": "What is the capital of France?", "mode": "general"}
+        resp = requests.post(f"{API_URL}/query", json=payload, timeout=TIMEOUT)
         assert resp.status_code == 200
         data = resp.json()
         answer = data["answer"].lower()
@@ -276,16 +241,8 @@ class TestLLMCapability:
 
     def test_vault_search_accuracy(self):
         """Test that vault mode retrieves relevant documents."""
-        payload = {
-            "text": "What files are in my vault?",
-            "mode": "vault",
-            "top_k": 5
-        }
-        resp = requests.post(
-            f"{API_URL}/query",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        payload = {"text": "What files are in my vault?", "mode": "vault", "top_k": 5}
+        resp = requests.post(f"{API_URL}/query", json=payload, timeout=TIMEOUT)
         assert resp.status_code == 200
         data = resp.json()
         # Vault mode should have sources
@@ -298,17 +255,11 @@ class TestLLMCapability:
 
         # Query in vault mode
         vault_resp = requests.post(
-            f"{API_URL}/query",
-            json={"text": question, "mode": "vault", "top_k": 3},
-            timeout=TIMEOUT
+            f"{API_URL}/query", json={"text": question, "mode": "vault", "top_k": 3}, timeout=TIMEOUT
         )
 
         # Query in general mode
-        general_resp = requests.post(
-            f"{API_URL}/query",
-            json={"text": question, "mode": "general"},
-            timeout=TIMEOUT
-        )
+        general_resp = requests.post(f"{API_URL}/query", json={"text": question, "mode": "general"}, timeout=TIMEOUT)
 
         assert vault_resp.status_code == 200
         assert general_resp.status_code == 200
@@ -327,26 +278,15 @@ class TestErrorHandling:
 
     def test_invalid_mode(self):
         """Test query with invalid mode."""
-        payload = {
-            "text": "test",
-            "mode": "invalid_mode"
-        }
-        resp = requests.post(
-            f"{API_URL}/query",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        payload = {"text": "test", "mode": "invalid_mode"}
+        resp = requests.post(f"{API_URL}/query", json=payload, timeout=TIMEOUT)
         # Should still work (defaults to vault mode)
         assert resp.status_code == 200
 
     def test_missing_required_field(self):
         """Test capture without text field."""
         payload = {}  # Missing "text"
-        resp = requests.post(
-            f"{API_URL}/capture",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        resp = requests.post(f"{API_URL}/capture", json=payload, timeout=TIMEOUT)
         # Should return 422 (validation error)
         assert resp.status_code in [400, 422]
 
@@ -354,13 +294,9 @@ class TestErrorHandling:
         """Test query with very long text."""
         payload = {
             "text": "test query " * 1000,  # Very long
-            "top_k": 3
+            "top_k": 3,
         }
-        resp = requests.post(
-            f"{API_URL}/query",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        resp = requests.post(f"{API_URL}/query", json=payload, timeout=TIMEOUT)
         # Should still handle gracefully
         assert resp.status_code in [200, 400, 500]
 
@@ -383,33 +319,18 @@ class TestToolIntegration:
 
     def test_date_tool_in_response(self):
         """Test that LLM can access and use date tool."""
-        payload = {
-            "text": "What is today's date?",
-            "mode": "general"
-        }
-        resp = requests.post(
-            f"{API_URL}/query",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        payload = {"text": "What is today's date?", "mode": "general"}
+        resp = requests.post(f"{API_URL}/query", json=payload, timeout=TIMEOUT)
         assert resp.status_code == 200
         data = resp.json()
         answer = data["answer"].lower()
         # Should now have current date since tool is available
-        assert "2026" in answer or "june" in answer or "6/" in answer, \
-            f"Expected current date, got: {answer}"
+        assert "2026" in answer or "june" in answer or "6/" in answer, f"Expected current date, got: {answer}"
 
     def test_vault_files_tool(self):
         """Test that LLM can list vault files."""
-        payload = {
-            "text": "List the markdown files in my vault",
-            "mode": "vault"
-        }
-        resp = requests.post(
-            f"{API_URL}/query",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        payload = {"text": "List the markdown files in my vault", "mode": "vault"}
+        resp = requests.post(f"{API_URL}/query", json=payload, timeout=TIMEOUT)
         assert resp.status_code == 200
         data = resp.json()
         answer = data["answer"]
@@ -423,13 +344,9 @@ class TestToolIntegration:
         payload = {
             "text": "Who did I meet with on June 16, 2026?",  # Explicit date
             "mode": "vault",
-            "top_k": 5
+            "top_k": 5,
         }
-        resp = requests.post(
-            f"{API_URL}/query",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        resp = requests.post(f"{API_URL}/query", json=payload, timeout=TIMEOUT)
         assert resp.status_code == 200
         data = resp.json()
         answer = data["answer"].lower()

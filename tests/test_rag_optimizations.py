@@ -49,13 +49,13 @@ class TestReranking:
             {
                 "file_path": "notes/ml-intro.md",
                 "title": "Machine Learning",
-                "chunk_text": "Machine learning is a subset of AI that enables systems to learn and improve from experience."
+                "chunk_text": "Machine learning is a subset of AI that enables systems to learn and improve from experience.",
             },
             {
                 "file_path": "notes/unrelated.md",
                 "title": "Gardening",
-                "chunk_text": "Learning to garden requires patience and practice with different plants."
-            }
+                "chunk_text": "Learning to garden requires patience and practice with different plants.",
+            },
         ]
 
         reranked = await rerank_results(query, results, top_k=1)
@@ -71,7 +71,7 @@ class TestReranking:
             {
                 "file_path": "notes/python.md",
                 "title": "Python",
-                "chunk_text": "Python is a programming language with simple, readable syntax."
+                "chunk_text": "Python is a programming language with simple, readable syntax.",
             }
         ]
 
@@ -116,11 +116,7 @@ class TestHybridSearch:
     async def test_hybrid_search_combines_results(self):
         """Hybrid search should merge vector and keyword results."""
         vector_results = [
-            {
-                "file_path": "notes/semantic.md",
-                "title": "Semantic",
-                "chunk_text": "This is semantically similar."
-            }
+            {"file_path": "notes/semantic.md", "title": "Semantic", "chunk_text": "This is semantically similar."}
         ]
 
         results = await hybrid_search("semantic meaning", vector_results, top_k=5)
@@ -133,11 +129,7 @@ class TestHybridSearch:
     async def test_hybrid_respects_top_k(self):
         """Hybrid search should respect top_k."""
         vector_results = [
-            {
-                "file_path": f"notes/file{i}.md",
-                "title": f"File {i}",
-                "chunk_text": "Content " + str(i)
-            }
+            {"file_path": f"notes/file{i}.md", "title": f"File {i}", "chunk_text": "Content " + str(i)}
             for i in range(10)
         ]
 
@@ -195,12 +187,7 @@ class TestOptimizationIntegration:
         """Query expansion should find results that base search might miss."""
         # This is more of an integration test
         try:
-            base_results = await expand_and_search(
-                "meeting",
-                lambda q: [],
-                top_k=3,
-                max_variations=1
-            )
+            base_results = await expand_and_search("meeting", lambda q: [], top_k=3, max_variations=1)
             # Should return something even if direct search returns nothing
         except Exception:
             pass  # Expected to fail without real retrieval
@@ -240,13 +227,7 @@ class TestOptimizationPerformance:
         """Reranking should complete quickly."""
         import time
 
-        results = [
-            {
-                "file_path": "test.md",
-                "title": "Test",
-                "chunk_text": "Test content"
-            }
-        ]
+        results = [{"file_path": "test.md", "title": "Test", "chunk_text": "Test content"}]
 
         start = time.time()
 

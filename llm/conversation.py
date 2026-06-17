@@ -58,9 +58,7 @@ def add_message(
     )
 
 
-def get_conversation_history(
-    conversation_id: str, limit: int = 5
-) -> list[dict]:
+def get_conversation_history(conversation_id: str, limit: int = 5) -> list[dict]:
     """Retrieve conversation history.
 
     Args:

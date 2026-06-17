@@ -65,10 +65,7 @@ class TestConcurrentToolExecution:
 
     def test_concurrent_tool_detection(self):
         """Detect tool calls concurrently."""
-        responses = [
-            f"[TOOL: get_current_date] for query {i}"
-            for i in range(100)
-        ]
+        responses = [f"[TOOL: get_current_date] for query {i}" for i in range(100)]
         results = []
 
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -92,10 +89,7 @@ class TestToolPerformance:
 
     def test_large_batch_tool_handling(self):
         """Handle tool calls in large batch."""
-        responses = [
-            f"Result for query {i}: [TOOL: get_current_date]"
-            for i in range(1000)
-        ]
+        responses = [f"Result for query {i}: [TOOL: get_current_date]" for i in range(1000)]
 
         handled = 0
         for response in responses:
@@ -111,6 +105,7 @@ class TestToolPerformance:
 
         for _ in range(100):
             from llm.tool_handler import format_tools_for_prompt
+
             formatted = format_tools_for_prompt(tools)
             assert len(formatted) > 0
 
@@ -176,10 +171,7 @@ class TestToolParameterValidation:
 
     def test_execute_with_extra_params(self):
         """Tool execution with extra unexpected parameters."""
-        result = execute_tool("get_current_date", {
-            "extra_param": "value",
-            "another": "param"
-        })
+        result = execute_tool("get_current_date", {"extra_param": "value", "another": "param"})
         assert isinstance(result, str)
 
     def test_execute_with_none_value(self):

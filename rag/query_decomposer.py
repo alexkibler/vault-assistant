@@ -70,9 +70,7 @@ Rules:
     return [query]
 
 
-async def retrieve_with_decomposition(
-    query: str, retrieve_fn, top_k: int = 5
-) -> dict:
+async def retrieve_with_decomposition(query: str, retrieve_fn, top_k: int = 5) -> dict:
     """Retrieve for compound question by decomposing then merging.
 
     Args:
@@ -111,7 +109,7 @@ async def retrieve_with_decomposition(
         except Exception as e:
             print(f"Retrieval failed for '{sub_q}': {e}")
 
-    merged_results = list(all_results.values())[:top_k * 2]
+    merged_results = list(all_results.values())[: top_k * 2]
 
     return {
         "sub_questions": sub_questions,

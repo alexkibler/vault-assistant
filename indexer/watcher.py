@@ -20,9 +20,7 @@ class VaultEventHandler(FileSystemEventHandler):
             self.pending_timers[file_path].cancel()
 
         def trigger():
-            asyncio.run_coroutine_threadsafe(
-                self.on_change_callback(file_path), self.event_loop
-            )
+            asyncio.run_coroutine_threadsafe(self.on_change_callback(file_path), self.event_loop)
 
         # Use threading.Timer since we're in a different thread
         timer = threading.Timer(2.0, trigger)

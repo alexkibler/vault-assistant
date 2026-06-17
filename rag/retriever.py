@@ -73,7 +73,7 @@ async def retrieve_optimized(query: str, top_k: int = 5) -> list[dict]:
         key = (r["file_path"], r["chunk_text"][:50])
         merged[key] = r
 
-    results = list(merged.values())[:top_k * 2]
+    results = list(merged.values())[: top_k * 2]
 
     # 4. Rerank by relevance
     if len(results) > top_k:

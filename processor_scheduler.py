@@ -40,9 +40,7 @@ async def run_processor():
 
 def schedule_processor():
     """Schedule processor to run on interval."""
-    schedule.every(PROCESSOR_INTERVAL).minutes.do(
-        lambda: asyncio.run(run_processor())
-    )
+    schedule.every(PROCESSOR_INTERVAL).minutes.do(lambda: asyncio.run(run_processor()))
     logger.info(f"Processor scheduled to run every {PROCESSOR_INTERVAL} minutes")
 
 

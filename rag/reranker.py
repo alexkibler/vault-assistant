@@ -8,9 +8,7 @@ import json
 from llm.ollama import chat_completion
 
 
-async def rerank_results(
-    query: str, results: list[dict], top_k: int = 3
-) -> list[dict]:
+async def rerank_results(query: str, results: list[dict], top_k: int = 3) -> list[dict]:
     """Rerank search results by relevance to the original query.
 
     The LLM scores each result on relevance (0-10), filtering out false positives.
@@ -40,10 +38,7 @@ Return JSON array with scores, one object per document."""
 
     # Format results for reranking
     document_text = "\n\n".join(
-        [
-            f"[Document {i}]\nFile: {r['file_path']}\nContent: {r['chunk_text'][:500]}..."
-            for i, r in enumerate(results)
-        ]
+        [f"[Document {i}]\nFile: {r['file_path']}\nContent: {r['chunk_text'][:500]}..." for i, r in enumerate(results)]
     )
 
     user_message = f"""Query: {query}
@@ -89,9 +84,7 @@ Return JSON array like: [{{"document_index": 0, "score": 8, "reason": "..."}}, .
         return results[:top_k]
 
 
-async def rerank_with_threshold(
-    query: str, results: list[dict], threshold: float = 5.0
-) -> list[dict]:
+async def rerank_with_threshold(query: str, results: list[dict], threshold: float = 5.0) -> list[dict]:
     """Rerank results and filter by relevance threshold.
 
     Removes results that score below threshold (e.g., wrong "Jonathan" person).

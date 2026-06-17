@@ -38,7 +38,7 @@ class TestToolDetection:
 
     def test_detect_xml_format_tool_call(self):
         """Detect XML-style tool calls."""
-        response = "Result: <tool name=\"get_current_date\"></tool>"
+        response = 'Result: <tool name="get_current_date"></tool>'
         tool_call = detect_tool_call(response)
         assert tool_call is not None
         assert tool_call["tool"] == "get_current_date"
@@ -80,7 +80,7 @@ class TestToolDetection:
 
     def test_detect_tool_with_equals_in_param(self):
         """Handle parameter values containing equals signs."""
-        response = '[TOOL: web_search, query=a=b]'
+        response = "[TOOL: web_search, query=a=b]"
         tool_call = detect_tool_call(response)
         assert tool_call is not None
         # Should split on first = only
@@ -238,10 +238,7 @@ class TestFormatToolsForPrompt:
 
     def test_format_single_tool(self):
         """Format single tool."""
-        tools = {"get_current_date": {
-            "description": "Get current date",
-            "parameters": {}
-        }}
+        tools = {"get_current_date": {"description": "Get current date", "parameters": {}}}
         formatted = format_tools_for_prompt(tools)
         assert "get_current_date" in formatted
 
@@ -251,7 +248,7 @@ class TestToolEdgeCases:
 
     def test_tool_call_with_newlines_in_param(self):
         """Tool call with newline characters in parameter."""
-        response = '[TOOL: web_search, query=test\nquery]'
+        response = "[TOOL: web_search, query=test\nquery]"
         tool_call = detect_tool_call(response)
         # Should either detect it or return None gracefully
         assert tool_call is None or tool_call["tool"] == "web_search"
@@ -304,7 +301,7 @@ class TestToolEdgeCases:
 
     def test_unicode_in_search_param(self):
         """Tool parameter with unicode characters."""
-        response = '[TOOL: web_search, query=café]'
+        response = "[TOOL: web_search, query=café]"
         tool_call = detect_tool_call(response)
         if tool_call:
             # Should handle unicode

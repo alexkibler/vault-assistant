@@ -98,7 +98,9 @@ async def chat_completion(
                 # If a tool was called, append assistant message and loop for follow-up
                 if tool_info and "error" not in tool_info:
                     messages.append({"role": "assistant", "content": response_text})
-                    messages.append({"role": "user", "content": "Please use the tool result to provide your final answer."})
+                    messages.append(
+                        {"role": "user", "content": "Please use the tool result to provide your final answer."}
+                    )
                     # Get final response with tool results
                     follow_up = await client.post(
                         f"{Config.OLLAMA_BASE_URL}/api/chat",
