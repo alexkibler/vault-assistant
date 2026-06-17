@@ -57,18 +57,15 @@ def handle_tool_call(response: str) -> tuple[str, Optional[dict]]:
     
     try:
         result = exec_tool(tool_name, params)
-        # Replace tool call with result in response
-        updated_response = response.replace(
-            tool_call["full_match"],
-            f"\n[TOOL RESULT: {result}]\n"
-        )
+        # Replace tool call with clean result
+        updated_response = response.replace(tool_call["full_match"], result)
         return updated_response, {
             "tool": tool_name,
             "params": params,
             "result": result
         }
     except Exception as e:
-        error_msg = f"[TOOL ERROR: {str(e)}]"
+        error_msg = f"Error using {tool_name}: {str(e)}"
         updated_response = response.replace(tool_call["full_match"], error_msg)
         return updated_response, {
             "tool": tool_name,
