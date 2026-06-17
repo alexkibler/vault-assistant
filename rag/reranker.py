@@ -49,16 +49,11 @@ Documents:
 Return JSON array like: [{{"document_index": 0, "score": 8, "reason": "..."}}, ...]"""
 
     try:
-        # Set timeout for reranking to prevent hanging on slow networks
-        import asyncio
-        response = await asyncio.wait_for(
-            chat_completion(
-                system_prompt=system_prompt,
-                user_message=user_message,
-                enable_tools=False,
-                temperature=0.3,  # Low temperature for consistency
-            ),
-            timeout=30.0  # 30 second timeout
+        response = await chat_completion(
+            system_prompt=system_prompt,
+            user_message=user_message,
+            enable_tools=False,
+            temperature=0.3,  # Low temperature for consistency
         )
 
         # Extract JSON from response
