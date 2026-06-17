@@ -1,0 +1,59 @@
+name: Integration Tests (Docker)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build images
+        run: |
+          docker compose build vault-assistant-api vault-assistant-processor
+
+      - name: Start services
+        run: |
+          # Start Ollama first
+          docker run -d --name ollama -p 11434:11434 ollama/ollama:latest
+          sleep 5
+
+          # Pull required models
+          docker exec ollama ollama pull nomic-embed-text
+          docker exec ollama ollama pull llama3.2
+
+          # Start vault-assistant services
+          docker compose up -d vault-assistant-api vault-assistant-processor
+
+          # Wait for API to be ready
+          timeout 60 bash -c 'until curl -f http://localhost:8765/health; do sleep 1; done'
+
+      - name: Run integration tests
+        run: |
+          pip install requests pytest pytest-asyncio
+          pytest tests/test_integration_docker.py -v --tb=short
+
+      - name: Cleanup
+        if: always()
+        run: |
+          # Remove test notes from unprocessed queue
+          docker compose exec -T vault-assistant-api \
+            find /root/.vault-assistant/unprocessed -name "*test*" -delete || true
+
+          # Stop services
+          docker compose down
+          docker stop ollama || true
+          docker rm ollama || true
+
+      - name: Show API logs on failure
+        if: failure()
+        run: docker compose logs vault-assistant-api
