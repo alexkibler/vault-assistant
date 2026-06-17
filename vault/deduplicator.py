@@ -39,7 +39,7 @@ def find_duplicates(vault_path: Path) -> dict[str, list[Path]]:
     Returns:
         Dictionary mapping content hash to list of duplicate file paths
     """
-    hashes = {}
+    hashes: dict[str, list[Path]] = {}
 
     for md_file in vault_path.rglob("*.md"):
         # Skip system files

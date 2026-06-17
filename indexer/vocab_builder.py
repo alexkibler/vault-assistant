@@ -50,7 +50,7 @@ def build_vault_vocabulary(vault_path: Path, max_terms: int = 200) -> list[str]:
     Returns:
         List of vocabulary terms ranked by frequency
     """
-    all_terms = Counter()
+    all_terms: Counter[str] = Counter()
 
     # Scan all markdown files
     for md_file in vault_path.rglob("*.md"):
