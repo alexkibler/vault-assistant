@@ -5,6 +5,8 @@ Useful for queries with specific dates, names, or technical terms.
 
 import re
 from pathlib import Path
+from typing import cast
+
 from config import Config
 
 
@@ -157,9 +159,12 @@ async def hybrid_search(
             unique_keyword_count += 1
 
     # Sort: vector results first, then keyword
-    sorted_results = sorted(
-        merged.values(),
-        key=lambda x: (x["_source"] != "vector", int(x["_rank"])),  # type: ignore
+    sorted_results = cast(
+        list[dict],
+        sorted(
+            merged.values(),
+            key=lambda x: (x["_source"] != "vector", int(x["_rank"])),
+        ),
     )
 
     # Remove internal tracking fields
