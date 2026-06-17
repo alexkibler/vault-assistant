@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form, Body
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from config import Config
@@ -148,6 +149,15 @@ app = FastAPI(
     title="Vault Assistant",
     description="Voice-driven personal knowledge base backend",
     lifespan=lifespan,
+)
+
+# Add CORS middleware to allow requests from Obsidian plugin
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
