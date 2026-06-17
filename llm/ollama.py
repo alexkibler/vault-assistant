@@ -1,5 +1,7 @@
 import httpx
 from config import Config
+from llm.tool_handler import format_tools_for_prompt, handle_tool_call
+from mcp_server import get_tools
 
 # Persistent client with connection pooling
 _ollama_client: httpx.AsyncClient | None = None
@@ -28,8 +30,9 @@ async def chat_completion(
     context_chunks: list[dict] | None = None,
     retry_count: int = 2,
     temperature: float = 0.7,
+    enable_tools: bool = True,
 ) -> str:
-    """Call Ollama chat completion with automatic retry and error recovery.
+    """Call Ollama chat completion with automatic retry, error recovery, and tool support.
 
     Args:
         system_prompt: System instruction for the LLM
@@ -37,6 +40,7 @@ async def chat_completion(
         context_chunks: Optional context chunks from RAG retrieval
         retry_count: Number of retries on failure (default 2)
         temperature: LLM temperature for diversity (lower = more focused)
+        enable_tools: Enable tool use in LLM (default True)
 
     Returns:
         Assistant response text
@@ -55,11 +59,18 @@ async def chat_completion(
             context_lines.append(f"---\n{chunk['chunk_text']}\n---")
         context_section = "Context:\n\n" + "\n\n".join(context_lines) + "\n\n"
 
+    # Add tools information to system prompt
+    enhanced_system_prompt = system_prompt
+    if enable_tools:
+        tools = get_tools()
+        tools_info = format_tools_for_prompt(tools)
+        enhanced_system_prompt = system_prompt + "\n" + tools_info
+
     # Build final message
     full_message = f"{context_section}Question: {user_message}"
 
     messages = [
-        {"role": "system", "content": system_prompt},
+        {"role": "system", "content": enhanced_system_prompt},
         {"role": "user", "content": full_message},
     ]
 
@@ -79,7 +90,30 @@ async def chat_completion(
             )
             response.raise_for_status()
             data = response.json()
-            return data["message"]["content"]
+            response_text = data["message"]["content"]
+
+            # Handle tool calls if enabled
+            if enable_tools:
+                response_text, tool_info = handle_tool_call(response_text)
+                # If a tool was called, append assistant message and loop for follow-up
+                if tool_info and "error" not in tool_info:
+                    messages.append({"role": "assistant", "content": response_text})
+                    messages.append({"role": "user", "content": "Please use the tool result to provide your final answer."})
+                    # Get final response with tool results
+                    follow_up = await client.post(
+                        f"{Config.OLLAMA_BASE_URL}/api/chat",
+                        json={
+                            "model": Config.OLLAMA_CHAT_MODEL,
+                            "messages": messages,
+                            "stream": False,
+                            "options": {"temperature": temperature},
+                        },
+                    )
+                    follow_up.raise_for_status()
+                    follow_up_data = follow_up.json()
+                    response_text = follow_up_data["message"]["content"]
+
+            return response_text
 
         except httpx.TimeoutException as e:
             last_error = e
