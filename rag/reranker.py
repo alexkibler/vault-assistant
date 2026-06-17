@@ -49,11 +49,16 @@ Documents:
 Return JSON array like: [{{"document_index": 0, "score": 8, "reason": "..."}}, ...]"""
 
     try:
-        response = await chat_completion(
-            system_prompt=system_prompt,
-            user_message=user_message,
-            enable_tools=False,
-            temperature=0.3,  # Low temperature for consistency
+        # Set timeout for reranking to prevent hanging on slow networks
+        import asyncio
+        response = await asyncio.wait_for(
+            chat_completion(
+                system_prompt=system_prompt,
+                user_message=user_message,
+                enable_tools=False,
+                temperature=0.3,  # Low temperature for consistency
+            ),
+            timeout=30.0  # 30 second timeout
         )
 
         # Extract JSON from response
@@ -79,7 +84,9 @@ Return JSON array like: [{{"document_index": 0, "score": 8, "reason": "..."}}, .
         return [r[0] for r in scored_results[:top_k]]
 
     except Exception as e:
+        import traceback
         print(f"Reranking failed: {e}")
+        traceback.print_exc()
         # Fallback: return original results
         return results[:top_k]
 
