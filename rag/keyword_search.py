@@ -118,7 +118,7 @@ async def keyword_search(query: str, top_k: int = 5) -> list[dict]:
             pass
 
     # Sort by score and return top K
-    sorted_results = sorted(results.values(), key=lambda x: x["score"], reverse=True)
+    sorted_results = sorted(results.values(), key=lambda x: x["score"], reverse=True)  # type: ignore
     return sorted_results[:top_k]
 
 
