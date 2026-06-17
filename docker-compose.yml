@@ -34,6 +34,7 @@ services:
       LANCEDB_PATH: /app/.lancedb
       # Host machine Ollama (not in Docker)
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen2.5:14b-instruct-q4_K_M}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
@@ -57,6 +58,7 @@ services:
       VAULT_PATH: /vault
       # Host machine Ollama (not in Docker)
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen2.5:14b-instruct-q4_K_M}
       # Process notes every N minutes (default: 30)
       PROCESSOR_INTERVAL: ${PROCESSOR_INTERVAL:-30}
     restart: unless-stopped
