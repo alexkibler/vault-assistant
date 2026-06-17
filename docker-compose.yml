@@ -18,7 +18,7 @@ version: "3.8"
 services:
   # Main API server (handles queries, transcriptions, captures)
   api:
-    build: .
+    image: ghcr.io/alexkibler/vault-assistant/api:latest
     container_name: vault-assistant-api
     ports:
       - "8765:8765"
@@ -44,9 +44,7 @@ services:
 
   # Note processor (categorizes and saves notes to vault on a schedule)
   processor:
-    build:
-      context: .
-      dockerfile: Dockerfile.processor
+    image: ghcr.io/alexkibler/vault-assistant/processor:latest
     container_name: vault-assistant-processor
     volumes:
       # Bind-mount vault with full access
